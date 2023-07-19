@@ -40,5 +40,5 @@ out/
 .DS_Store
 
 ### python venv ###
-venv
+env
 TODO.md
