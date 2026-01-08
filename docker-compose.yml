@@ -1,0 +1,58 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: charon
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      DB_URL: postgresql+psycopg://postgres:postgres@db:5432/charon
+      API_PORT: 8000
+      ADMIN_TOKEN: changeme
+      SCHEDULE_CRON: "20 12 * * 1-5"
+      TIMEZONE: Europe/Warsaw
+      LOG_LEVEL: INFO
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+
+  worker:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command: ["/bin/sh", "/app/scripts/cron.sh"]
+    environment:
+      DB_URL: postgresql+psycopg://postgres:postgres@db:5432/charon
+      SCHEDULE_CRON: "20 12 * * 1-5"
+      TIMEZONE: Europe/Warsaw
+    volumes:
+      - ./scripts:/app/scripts
+      - ./backend:/app/backend
+    depends_on:
+      - db
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  db_data:
