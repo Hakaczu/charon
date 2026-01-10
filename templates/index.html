@@ -78,12 +78,24 @@
     .pill.hold { background: rgba(234, 179, 8, 0.16); color: var(--hold); border: 1px solid rgba(234, 179, 8, 0.4);} 
     .muted { color: var(--muted); font-size: 14px; }
     .value { font-variant-numeric: tabular-nums; }
+    .meta {
+      display: grid;
+      gap: 6px;
+      margin-bottom: 16px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .meta strong { color: var(--text); font-weight: 600; }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>Charon • Kursy NBP</h1>
     <p class="subtitle">Bieżące i historyczne kursy ({{ items|length }} instrumentów) + rekomendacja kup/sprzedaj/hold oparta na odchyleniu od średniej.</p>
+    <div class="meta">
+      <div>Ostatnie pobranie: <strong>{{ last_fetch }}</strong></div>
+      <div>Następne odświeżenie: <strong>{{ next_refresh }}</strong> (co {{ refresh_seconds }} s)</div>
+    </div>
     <table>
       <thead>
         <tr>
