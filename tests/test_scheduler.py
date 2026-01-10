@@ -12,9 +12,11 @@ FAKE_GOLD = [("2024-01-01", 250.0)]
 def test_refresh_data_populates_cache(monkeypatch, app_module):
     main, _ = app_module
 
-    monkeypatch.setattr(main, "fetch_table", lambda table="A": FAKE_TABLE)
-    monkeypatch.setattr(main, "get_recent_currency_history", lambda code, days=60: FAKE_HISTORY)
-    monkeypatch.setattr(main, "get_recent_gold_history", lambda days=60: FAKE_GOLD)
+    import charon.nbp_client as nbp
+
+    monkeypatch.setattr(nbp, "fetch_table", lambda table="A": FAKE_TABLE)
+    monkeypatch.setattr(nbp, "get_recent_currency_history", lambda code, days=60: FAKE_HISTORY)
+    monkeypatch.setattr(nbp, "get_recent_gold_history", lambda days=60: FAKE_GOLD)
 
     main._CACHE["items"] = []
     main._CACHE["last_fetch"] = None

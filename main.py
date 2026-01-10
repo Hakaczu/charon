@@ -12,6 +12,8 @@ from flask import Flask, jsonify, render_template
 
 from charon import db
 from charon.decision import DecisionResult, decide_from_history
+from charon.constants import TOP10_CURRENCIES, CURRENCY_ICON_CLASS
+from charon import collector
 from charon.nbp_client import (
     NBPError,
     fetch_table,
@@ -45,36 +47,7 @@ HISTORY_DAYS = 60
 REFRESH_SECONDS = int(os.getenv("REFRESH_SECONDS", "3600"))
 PORT = int(os.getenv("PORT", "5000"))
 
-# Zostawiamy złoto + top10 głównych walut
-TOP10_CURRENCIES = [
-    "USD",
-    "EUR",
-    "JPY",
-    "GBP",
-    "AUD",
-    "CAD",
-    "CHF",
-    "CNY",
-    "SEK",
-    "NZD",
-    "NOK",
-]
-
-# Ikony CSS (klasy) dla walut; fallback na generic
-CURRENCY_ICON_CLASS = {
-    "USD": "fa-solid fa-dollar-sign",
-    "EUR": "fa-solid fa-euro-sign",
-    "JPY": "fa-solid fa-yen-sign",
-    "GBP": "fa-solid fa-sterling-sign",
-    "AUD": "fa-solid fa-dollar-sign",
-    "CAD": "fa-solid fa-dollar-sign",
-    "CHF": "fa-solid fa-coins",
-    "CNY": "fa-solid fa-coins",
-    "SEK": "fa-solid fa-coins",
-    "NZD": "fa-solid fa-dollar-sign",
-    "NOK": "fa-solid fa-coins",
-    "XAU": "fa-solid fa-gem",
-}
+# constants imported from charon.constants
 
 class CacheStore(TypedDict):
     items: List[DecisionResult]
@@ -102,30 +75,15 @@ def _decorate_decision(decision: DecisionResult, code: str, name: str) -> Decisi
 
 
 def _build_instruments() -> Tuple[List[DecisionResult], datetime]:
-    """Pobiera top waluty z tabeli A + złoto, zapisuje do DB, zwraca decyzje."""
-    instruments: List[DecisionResult] = []
+    """Delegate collection to `charon.collector.collect` and return results."""
+    decisions, fetched_at = collector.collect(codes=TOP10_CURRENCIES, days=HISTORY_DAYS)
+    # Ensure `name` and `code` are set for UI (collector sets icon_class)
     table = fetch_table("A")
     table_map = {item["code"]: item for item in table}
-    codes = [code for code in TOP10_CURRENCIES if code in table_map]
-
-    with db.get_session() as session:
-        for code in codes:
-            history = get_recent_currency_history(code, days=HISTORY_DAYS)
-            decision = decide_from_history(history, bias=DECISION_BIAS_PERCENT)
-            name = table_map.get(code, {}).get("currency", code)
-
-            # zapisz historię do bazy (bez duplikatów)
-            db.save_currency_history(session, code=code, name=name, history=history)
-            instruments.append(_decorate_decision(decision, code=code, name=name))
-
-        gold_history = get_recent_gold_history(days=HISTORY_DAYS)
-        db.save_gold_history(session, history=gold_history)
-
-    gold_decision = decide_from_history(gold_history, bias=DECISION_BIAS_PERCENT)
-    instruments.append(_decorate_decision(gold_decision, code="XAU", name="Złoto (1g)"))
-
-    fetched_at = datetime.now(timezone.utc)
-    return instruments, fetched_at
+    for d in decisions:
+        if not d.name:
+            d.name = table_map.get(d.code, {}).get("currency", d.code)
+    return decisions, fetched_at
 
 
 def _ensure_cached_data() -> Tuple[List[DecisionResult], Optional[datetime], Optional[datetime]]:

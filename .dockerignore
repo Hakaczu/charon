@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.db
+*.log
+.cache/
+.pytest_cache/
+.venv/
+.env
+.git
+.gitignore
+architecture/
+collector.log
+charon.log

@@ -31,9 +31,11 @@ def fake_data(monkeypatch, app_module):
     def fake_gold(days: int = 60):
         return FAKE_GOLD
 
-    monkeypatch.setattr(main, "fetch_table", fake_fetch_table)
-    monkeypatch.setattr(main, "get_recent_currency_history", fake_history)
-    monkeypatch.setattr(main, "get_recent_gold_history", fake_gold)
+    import charon.nbp_client as nbp
+
+    monkeypatch.setattr(nbp, "fetch_table", fake_fetch_table)
+    monkeypatch.setattr(nbp, "get_recent_currency_history", fake_history)
+    monkeypatch.setattr(nbp, "get_recent_gold_history", fake_gold)
     # reset cache
     main._CACHE["items"] = []
     main._CACHE["last_fetch"] = None

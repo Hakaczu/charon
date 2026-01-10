@@ -7,4 +7,5 @@ black>=24.10.0
 ruff>=0.6.9
 mypy>=1.13.0
 APScheduler>=3.9.1
-python-dotenv>=1.0.1
+psycopg2-binary>=2.9.9
+gunicorn>=23.0.0

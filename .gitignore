@@ -48,6 +48,7 @@ TODO.md
 charon.log
 __pycache__/
 *.pyc
+collector.log
 
 # lokalne zmienne środowiskowe
 .env
