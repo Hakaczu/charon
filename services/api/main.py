@@ -11,7 +11,15 @@ load_dotenv()
 
 REDIS_CACHE_KEY = os.getenv("REDIS_CACHE_KEY", "charon:cache")
 
-app = FastAPI(title="Charon API", version="1.0.0")
+app = FastAPI(
+  title="Charon API",
+  version="1.0.0",
+  description="Snapshot of FX rates and gold from NBP with simple buy/sell/hold signals.",
+  docs_url="/docs",
+  redoc_url="/redoc",
+  openapi_url="/openapi.json",
+  contact={"name": "Charon", "url": "https://github.com/Hakaczu/charon"},
+)
 
 
 def _get_snapshot() -> Dict[str, Any]:

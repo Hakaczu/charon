@@ -51,7 +51,7 @@ Frontend env (`frontend/.env.local`):
 ### Docker / docker-compose (dev stack: backend + frontend)
 
 ```bash
-docker-compose up --build
+docker-compose up
 ```
 
 - FastAPI backend: `http://127.0.0.1:8000/`
@@ -64,17 +64,36 @@ docker-compose up --build
 
 The frontend respects `NEXT_PUBLIC_API_BASE` and `NEXT_PUBLIC_REFRESH_SECONDS` set in compose (default `http://api:8000`).
 
+Published container images (GHCR):
+
+- `ghcr.io/hakaczu/charon-api`
+- `ghcr.io/hakaczu/charon-miner`
+- `ghcr.io/hakaczu/charon-frontend`
+
+If the registry is private, log in first:
+
+```bash
+echo "$GITHUB_TOKEN" | docker login ghcr.io -u <your-github-username> --password-stdin
+```
+
 ### Production mode with reverse proxy (Nginx, ports 80/443)
 
 Run the full stack with Nginx proxying `/api` to the backend and everything else to the frontend using `docker-compose.prod.yml`:
 
 ```bash
-docker-compose -f docker-compose.prod.yml up --build
+docker-compose -f docker-compose.prod.yml up
 ```
 
 - Nginx listens on `80` and `443` and routes `/api` to `api:8000`, all other traffic to `frontend:3000`.
 - The frontend is configured with `NEXT_PUBLIC_API_BASE=/api`, so all requests go through the proxy.
 - TLS is **not** provided by default (port 443 is exposed without certs). Add your own certificates in `docker/reverse-proxy.conf` if needed.
+
+### API docs
+
+- Swagger UI: `/docs`
+- ReDoc: `/redoc`
+- OpenAPI JSON: `/openapi.json`
+- Markdown summary: `docs/api.md`
 
 ### .env configuration
 
