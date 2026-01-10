@@ -3,6 +3,7 @@
 import logging
 import os
 from datetime import datetime, timedelta, timezone
+from logging.handlers import RotatingFileHandler
 from typing import List, Optional, Tuple, TypedDict
 
 from dotenv import load_dotenv
@@ -17,7 +18,20 @@ from charon.nbp_client import (
     get_recent_gold_history,
 )
 
-logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
+LOG_FILE = os.getenv("LOG_FILE", "charon.log")
+
+
+def _configure_logging() -> None:
+    formatter = logging.Formatter("[%(asctime)s] [%(levelname)s] %(message)s")
+    stream = logging.StreamHandler()
+    stream.setFormatter(formatter)
+    rotating = RotatingFileHandler(LOG_FILE, maxBytes=1_000_000, backupCount=3)
+    rotating.setFormatter(formatter)
+
+    logging.basicConfig(level=logging.INFO, handlers=[stream, rotating])
+
+
+_configure_logging()
 
 app = Flask(__name__)
 

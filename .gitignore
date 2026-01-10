@@ -42,6 +42,12 @@ out/
 ### python venv ###
 env
 TODO.md
+.mypy_cache
+.ruff_cache
+.pytest_cache
+charon.log
+__pycache__/
+*.pyc
 
 # lokalne zmienne środowiskowe
 .env
