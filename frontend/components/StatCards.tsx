@@ -21,10 +21,6 @@ export function StatCards({ analytics }: { analytics: Analytics }) {
         <div className="label">Vol (std)</div>
         <div className="value value">{formatNumber(std)}</div>
       </div>
-      <div className="stat">
-        <div className="label">Ostatni</div>
-        <div className="value value">{formatNumber(last)}</div>
-      </div>
     </div>
   );
 }

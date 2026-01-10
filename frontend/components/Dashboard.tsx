@@ -7,11 +7,14 @@ import { StatCards } from "./StatCards";
 import { MetaBar } from "./MetaBar";
 import { computeAnalyticsMap } from "@/lib/metrics";
 import { Snapshot } from "@/lib/types";
+import { formatChange, formatNumber } from "@/lib/format";
+import clsx from "clsx";
 
 export function Dashboard({ snapshot }: { snapshot: Snapshot }) {
   const { items, history, lastFetch } = snapshot;
   const codesWithHistory = items.filter((i) => history[i.code]?.length).map((i) => i.code);
   const [selected, setSelected] = useState<string>(codesWithHistory[0] || items[0]?.code || "");
+  const selectedDecision = items.find((i) => i.code === selected);
 
   const analyticsMap = useMemo(() => computeAnalyticsMap(history), [history]);
   const selectedHistory = history[selected] || [];
@@ -57,7 +60,33 @@ export function Dashboard({ snapshot }: { snapshot: Snapshot }) {
               <div className="muted">Brak danych do wykresu.</div>
             )}
           </div>
-          <StatCards analytics={selectedAnalytics} />
+          <div className="side-stack">
+            {selectedDecision && (
+              <div className="card decision-card">
+                <div className="decision-header">
+                  <span className="label">Decyzja</span>
+                  <span className="muted">{selectedDecision.code}</span>
+                </div>
+                <div className="decision-main">
+                  <span className={clsx("pill", selectedDecision.decision)}>
+                    {selectedDecision.decision.toUpperCase()}
+                  </span>
+                  <div className="decision-meta">
+                    <div className="muted">Ostatni kurs</div>
+                    <div className="value">{formatNumber(selectedDecision.latest_rate)}</div>
+                  </div>
+                  {selectedDecision.change_pct !== null && (
+                    <div className="decision-meta">
+                      <div className="muted">Zmiana vs. średnia</div>
+                      <div className="value">{formatChange(selectedDecision.change_pct)}</div>
+                    </div>
+                  )}
+                </div>
+                <div className="muted decision-basis">{selectedDecision.basis}</div>
+              </div>
+            )}
+            <StatCards analytics={selectedAnalytics} />
+          </div>
         </div>
       </div>
 

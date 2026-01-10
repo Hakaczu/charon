@@ -79,7 +79,7 @@ export function RateChart({ code, series, avg }: Props) {
   };
 
   return (
-    <div style={{ height: 320 }}>
+    <div className="chart-wrapper">
       <Line data={chartData} options={options} />
     </div>
   );

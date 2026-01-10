@@ -13,7 +13,7 @@ export function DecisionTable({ items }: { items: Decision[] }) {
   }
 
   return (
-    <div className="table-card">
+    <div className="table-card table-scroll">
       <table>
         <thead>
           <tr>

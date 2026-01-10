@@ -38,7 +38,8 @@ body {
 }
 
 .container {
-  width: min(1200px, 100%);
+  width: 100%;
+  max-width: 1200px;
 }
 
 h1 {
@@ -58,7 +59,8 @@ h1 {
 
 .meta {
   display: grid;
-  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
   margin-bottom: 18px;
   color: var(--muted);
   font-size: 14px;
@@ -111,6 +113,14 @@ button,
   border-radius: 16px;
   overflow: hidden;
   box-shadow: var(--shadow);
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+.table-card table {
+  min-width: 720px;
 }
 
 table {
@@ -203,6 +213,11 @@ tr:not(:last-child) td {
   font-variant-numeric: tabular-nums;
 }
 
+
+.chart-wrapper {
+  height: 320px;
+}
+
 .grid-two {
   display: grid;
   grid-template-columns: 2fr 1fr;
@@ -216,6 +231,44 @@ tr:not(:last-child) td {
   }
   .grid-two {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  body {
+    padding: 20px 10px 28px;
+  }
+  h1 {
+    font-size: 22px;
+    flex-wrap: wrap;
+  }
+  .subtitle {
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  th,
+  td {
+    padding: 12px 10px;
+    font-size: 14px;
+  }
+  .meta {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+  .controls {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  select,
+  button,
+  .input {
+    width: 100%;
+  }
+  .chart-wrapper {
+    height: 240px;
+  }
+  .table-card table {
+    min-width: 600px;
   }
 }
 
@@ -282,5 +335,46 @@ tr:not(:last-child) td {
 @keyframes spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+.side-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.decision-card {
+  border: 1px solid var(--border);
+}
+
+.decision-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.decision-main {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px 12px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.decision-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.decision-basis {
+  line-height: 1.4;
+}
+
+@media (max-width: 640px) {
+  .decision-main {
+    grid-template-columns: 1fr;
   }
 }
