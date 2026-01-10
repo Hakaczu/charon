@@ -42,3 +42,20 @@ out/
 ### python venv ###
 env
 TODO.md
+.mypy_cache
+.ruff_cache
+.pytest_cache
+charon.log
+__pycache__/
+*.pyc
+collector.log
+
+# lokalne zmienne środowiskowe
+.env
+
+*.db
+frontend/node_modules
+frontend/.next
+frontend/.env.local
+frontend/.env
+frontend/.vercel
