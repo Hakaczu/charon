@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Charon – decyzje walutowe</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
   <style>
     :root {
       color-scheme: light dark;
@@ -126,6 +127,58 @@
       font-size: 14px;
     }
     .meta strong { color: var(--text); font-weight: 600; }
+
+    .panel {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 16px 50px rgba(0,0,0,0.35);
+      margin-bottom: 16px;
+    }
+    .panel h3 {
+      margin: 0 0 12px;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    select {
+      background: #0f172a;
+      color: var(--text);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 14px;
+    }
+    .grid-two {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 16px;
+      align-items: start;
+    }
+    @media (max-width: 900px) {
+      .grid-two { grid-template-columns: 1fr; }
+    }
+    .stat-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 10px;
+    }
+    .stat {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 10px;
+      padding: 12px;
+    }
+    .stat .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .stat .value { font-size: 16px; margin-top: 4px; }
   </style>
 </head>
 <body>
@@ -135,6 +188,18 @@
     <div class="meta">
       <div>Ostatnie pobranie: <strong>{{ last_fetch }}</strong></div>
       <div>Następne odświeżenie: <strong>{{ next_refresh }}</strong> (co {{ refresh_seconds }} s)</div>
+    </div>
+
+    <div class="panel">
+      <h3><i class="fa-solid fa-chart-line"></i> Wykres historyczny</h3>
+      <div class="controls">
+        <label for="instrumentSelect" class="muted">Instrument:</label>
+        <select id="instrumentSelect"></select>
+      </div>
+      <div class="grid-two">
+        <canvas id="rateChart" height="260"></canvas>
+        <div class="stat-cards" id="stats"></div>
+      </div>
     </div>
     <table>
       <thead>
@@ -161,5 +226,96 @@
       </tbody>
     </table>
   </div>
+  <script id="chart-data" type="application/json">{{ chart_data|tojson }}</script>
+  <script id="analytics-data" type="application/json">{{ analytics|tojson }}</script>
+  <script id="items-data" type="application/json">{{ items_js|tojson }}</script>
+  <script>
+    const chartData = JSON.parse(document.getElementById('chart-data').textContent);
+    const analytics = JSON.parse(document.getElementById('analytics-data').textContent);
+  const items = JSON.parse(document.getElementById('items-data').textContent);
+
+    const selectEl = document.getElementById('instrumentSelect');
+    const statsEl = document.getElementById('stats');
+    const ctx = document.getElementById('rateChart');
+
+    // Populate select
+    items.forEach((item) => {
+      if (!chartData[item.code]) return;
+      const opt = document.createElement('option');
+      opt.value = item.code;
+      opt.textContent = `${item.code} — ${item.name}`;
+      selectEl.appendChild(opt);
+    });
+
+    let chart;
+    const fmtNumber = (v) => v === null || v === undefined ? '—' : Number(v).toFixed(4);
+
+    function renderStats(code) {
+      const a = analytics[code] || {};
+      statsEl.innerHTML = `
+        <div class="stat"><div class="label">Średnia</div><div class="value">${fmtNumber(a.avg)}</div></div>
+        <div class="stat"><div class="label">Min</div><div class="value">${fmtNumber(a.min)}</div></div>
+        <div class="stat"><div class="label">Max</div><div class="value">${fmtNumber(a.max)}</div></div>
+        <div class="stat"><div class="label">Vol (std)</div><div class="value">${fmtNumber(a.std)}</div></div>
+        <div class="stat"><div class="label">Ostatni</div><div class="value">${fmtNumber(a.last)}</div></div>
+      `;
+    }
+
+    function renderChart(code) {
+      const series = chartData[code] || [];
+      const labels = series.map(p => p.date);
+      const data = series.map(p => p.value);
+      if (chart) chart.destroy();
+      chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            {
+              label: `${code} (mid)`,
+              data,
+              borderColor: '#38bdf8',
+              backgroundColor: 'rgba(56, 189, 248, 0.15)',
+              tension: 0.2,
+              fill: true,
+              pointRadius: 0,
+              borderWidth: 2,
+            },
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: {
+              ticks: { color: '#94a3b8', maxTicksLimit: 6 },
+              grid: { color: 'rgba(255,255,255,0.05)' }
+            },
+            y: {
+              ticks: { color: '#94a3b8' },
+              grid: { color: 'rgba(255,255,255,0.05)' }
+            }
+          },
+          plugins: {
+            legend: { labels: { color: '#e2e8f0' } },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(4)}`
+              }
+            }
+          }
+        }
+      });
+      renderStats(code);
+    }
+
+    const defaultCode = selectEl.options[0]?.value || Object.keys(chartData)[0];
+    if (defaultCode) {
+      selectEl.value = defaultCode;
+      renderChart(defaultCode);
+    }
+
+    selectEl.addEventListener('change', (e) => renderChart(e.target.value));
+  </script>
 </body>
 </html>

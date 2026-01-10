@@ -22,12 +22,16 @@ def test_collector_collects_and_logs(monkeypatch, tmp_path, caplog, app_module):
 
     caplog.set_level("INFO", logger="charon.collector")
 
-    decisions, fetched_at = collector.collect(codes=["USD"], days=60)
+    decisions, fetched_at, history_map = collector.collect(codes=["USD"], days=60)
 
     # decisions should contain USD and gold
     codes = {d.code for d in decisions}
     assert "USD" in codes
     assert "XAU" in codes
+
+    # history_map should contain both series
+    assert "USD" in history_map
+    assert "XAU" in history_map
 
     # DB should have USD and gold rows
     with db.get_session() as session:

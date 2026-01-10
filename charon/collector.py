@@ -44,10 +44,12 @@ def _get_logger() -> logging.Logger:
     return logger
 
 
-def collect(codes: Optional[List[str]] = None, days: int = 60) -> Tuple[List[DecisionResult], datetime]:
+def collect(
+    codes: Optional[List[str]] = None, days: int = 60
+) -> Tuple[List[DecisionResult], datetime, dict[str, List[tuple[str, float]]]]:
     """Collect data for given codes (or TOP10) and persist to DB.
 
-    Returns (decisions, fetched_at).
+    Returns (decisions, fetched_at, history_map).
     """
     logger = _get_logger()
     fetched_at = datetime.now(timezone.utc)
@@ -56,6 +58,7 @@ def collect(codes: Optional[List[str]] = None, days: int = 60) -> Tuple[List[Dec
     selected = codes or TOP10_CURRENCIES
 
     decisions: List[DecisionResult] = []
+    history_map: dict[str, List[tuple[str, float]]] = {}
     inserted_total = 0
 
     with db.get_session() as session:
@@ -70,6 +73,8 @@ def collect(codes: Optional[List[str]] = None, days: int = 60) -> Tuple[List[Dec
             if not history:
                 logger.warning("No history for %s - skipping", code)
                 continue
+
+            history_map[code] = history
 
             try:
                 decision = decide_from_history(history)
@@ -108,12 +113,13 @@ def collect(codes: Optional[List[str]] = None, days: int = 60) -> Tuple[List[Dec
                 gold_decision.name = "Złoto (1g)"
                 gold_decision = _attach_icon(gold_decision, "XAU")
                 decisions.append(gold_decision)
+                history_map["XAU"] = gold_history
                 logger.info("Gold: fetched %d points, inserted %d rows", len(gold_history), inserted)
             except Exception:
                 logger.exception("DB save failed for gold")
 
     logger.info("Collect finished: %d instruments, %d rows inserted", len(decisions), inserted_total)
-    return decisions, fetched_at
+    return decisions, fetched_at, history_map
 
 
 def _attach_icon(decision: DecisionResult, code: str) -> DecisionResult:
