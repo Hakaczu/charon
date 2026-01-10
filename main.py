@@ -5,6 +5,7 @@ import os
 from datetime import datetime, timedelta, timezone
 from logging.handlers import RotatingFileHandler
 from typing import List, Optional, Tuple, TypedDict
+from apscheduler.schedulers.background import BackgroundScheduler
 
 from dotenv import load_dotenv
 from flask import Flask, jsonify, render_template
@@ -86,6 +87,9 @@ _CACHE: CacheStore = {
     "last_fetch": None,
 }
 
+# Scheduler instance (if started)
+_SCHEDULER: Optional[BackgroundScheduler] = None
+
 # Inicjalizacja bazy przy starcie aplikacji
 db.init_db()
 
@@ -139,6 +143,50 @@ def _ensure_cached_data() -> Tuple[List[DecisionResult], Optional[datetime], Opt
     return _CACHE.get("items", []), last_fetch, next_refresh
 
 
+def refresh_data() -> None:
+    """Force a fresh fetch from NBP and update DB + cache."""
+    logging.info("Refreshing data from NBP...")
+    try:
+        instruments, fetched_at = _build_instruments()
+        _CACHE["items"] = instruments
+        _CACHE["last_fetch"] = fetched_at
+        logging.info("Refreshed %d instruments at %s", len(instruments), fetched_at.isoformat())
+    except Exception:
+        logging.exception("Error during refresh_data")
+
+
+def start_scheduler(interval_seconds: Optional[int] = None, run_immediately: bool = False) -> BackgroundScheduler:
+    """Start background scheduler to refresh data periodically.
+
+    Returns the scheduler instance.
+    """
+    global _SCHEDULER
+    if _SCHEDULER is not None:
+        logging.info("Scheduler already running")
+        return _SCHEDULER
+
+    sched = BackgroundScheduler()
+    seconds = interval_seconds or REFRESH_SECONDS
+    next_run = datetime.now(timezone.utc) if run_immediately else None
+    sched.add_job(refresh_data, "interval", seconds=seconds, next_run_time=next_run)
+    sched.start()
+    _SCHEDULER = sched
+    logging.info("Scheduler started with interval %s seconds", seconds)
+    return sched
+
+
+def stop_scheduler() -> None:
+    """Stop background scheduler if running."""
+    global _SCHEDULER
+    if _SCHEDULER is None:
+        return
+    logging.info("Shutting down scheduler")
+    try:
+        _SCHEDULER.shutdown(wait=False)
+    finally:
+        _SCHEDULER = None
+
+
 def _fmt_ts(ts: Optional[datetime]) -> str:
     if not ts:
         return "—"
@@ -172,4 +220,10 @@ def handle_nbp_error(error: NBPError):
 
 
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=PORT)
+    if os.getenv("SCHEDULER_ENABLED", "1") == "1":
+        # start scheduler and do an immediate refresh
+        start_scheduler(run_immediately=True)
+    try:
+        app.run(debug=True, host="0.0.0.0", port=PORT)
+    finally:
+        stop_scheduler()

@@ -6,4 +6,5 @@ python-dotenv>=1.0.1
 black>=24.10.0
 ruff>=0.6.9
 mypy>=1.13.0
+APScheduler>=3.9.1
 python-dotenv>=1.0.1
