@@ -1,10 +1,12 @@
 """Charon – prosta aplikacja do pobierania kursów NBP i decyzji buy/sell/hold."""
 
+import json
 import logging
 import os
 from datetime import datetime, timedelta, timezone
 from logging.handlers import RotatingFileHandler
 from typing import Dict, List, Optional, Tuple, TypedDict
+from dataclasses import asdict
 from apscheduler.schedulers.background import BackgroundScheduler
 
 from dotenv import load_dotenv
@@ -20,6 +22,7 @@ from charon.nbp_client import (
     get_recent_currency_history,
     get_recent_gold_history,
 )
+import redis
 
 LOG_FILE = os.getenv("LOG_FILE", "charon.log")
 
@@ -46,6 +49,9 @@ DECISION_BIAS_PERCENT = 1.0  # próg procentowy względem średniej
 HISTORY_DAYS = 60
 REFRESH_SECONDS = int(os.getenv("REFRESH_SECONDS", "3600"))
 PORT = int(os.getenv("PORT", "5000"))
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+REDIS_ENABLED = os.getenv("REDIS_ENABLED", "1") == "1"
+REDIS_CACHE_KEY = os.getenv("REDIS_CACHE_KEY", "charon:cache")
 
 # constants imported from charon.constants
 
@@ -61,6 +67,39 @@ _CACHE: CacheStore = {
     "last_fetch": None,
     "history_map": {},
 }
+# Lazy Redis client
+_redis_client: Optional[redis.Redis] = None
+
+
+def _get_redis() -> Optional[redis.Redis]:
+    global _redis_client
+    if not REDIS_ENABLED:
+        return None
+    if _redis_client is None:
+        try:
+            _redis_client = redis.from_url(REDIS_URL, decode_responses=True)
+        except Exception:
+            logging.exception("Failed to init redis client")
+            _redis_client = None
+    return _redis_client
+
+
+def _serialize_cache(instruments: List[DecisionResult], fetched_at: datetime, history_map: Dict[str, List[Tuple[str, float]]]) -> str:
+    payload = {
+        "items": [asdict(item) for item in instruments],
+        "history_map": history_map,
+        "last_fetch": fetched_at.isoformat(),
+    }
+    return json.dumps(payload)
+
+
+def _deserialize_cache(raw: str) -> Tuple[List[DecisionResult], datetime, Dict[str, List[Tuple[str, float]]]]:
+    data = json.loads(raw)
+    items = [DecisionResult(**item) for item in data.get("items", [])]
+    last_fetch_str = data.get("last_fetch")
+    last_fetch = datetime.fromisoformat(last_fetch_str) if last_fetch_str else None
+    history_map = data.get("history_map", {})
+    return items, last_fetch, history_map
 
 # Scheduler instance (if started)
 _SCHEDULER: Optional[BackgroundScheduler] = None
@@ -89,19 +128,29 @@ def _build_instruments() -> Tuple[List[DecisionResult], datetime, Dict[str, List
 
 
 def _ensure_cached_data() -> Tuple[List[DecisionResult], Optional[datetime], Optional[datetime], Dict[str, List[Tuple[str, float]]]]:
-    now = datetime.now(timezone.utc)
-    last_fetch: Optional[datetime] = _CACHE["last_fetch"]
-    needs_refresh = last_fetch is None or (now - last_fetch) >= timedelta(seconds=REFRESH_SECONDS)
+    # Serve from in-memory cache if available
+    last_fetch: Optional[datetime] = _CACHE.get("last_fetch")
+    if last_fetch:
+        next_refresh = last_fetch + timedelta(seconds=REFRESH_SECONDS)
+        return _CACHE.get("items", []), last_fetch, next_refresh, _CACHE.get("history_map", {})
 
-    if needs_refresh:
-        instruments, fetched_at, history_map = _build_instruments()
-        _CACHE["items"] = instruments
-        _CACHE["last_fetch"] = fetched_at
-        _CACHE["history_map"] = history_map
-        last_fetch = fetched_at
+    # Try to hydrate from Redis if in-memory is empty
+    client = _get_redis()
+    if client:
+        try:
+            raw = client.get(REDIS_CACHE_KEY)
+            if raw:
+                items, last_fetch, history_map = _deserialize_cache(raw)
+                _CACHE["items"] = items
+                _CACHE["last_fetch"] = last_fetch
+                _CACHE["history_map"] = history_map
+                next_refresh = last_fetch + timedelta(seconds=REFRESH_SECONDS) if last_fetch else None
+                return items, last_fetch, next_refresh, history_map
+        except Exception:
+            logging.exception("Failed to load cache from redis")
 
-    next_refresh = last_fetch + timedelta(seconds=REFRESH_SECONDS) if last_fetch else None
-    return _CACHE.get("items", []), last_fetch, next_refresh, _CACHE.get("history_map", {})
+    # If still empty, return whatever is there (likely empty) without fetching NBP
+    return _CACHE.get("items", []), _CACHE.get("last_fetch"), None, _CACHE.get("history_map", {})
 
 
 def refresh_data() -> None:
@@ -112,6 +161,13 @@ def refresh_data() -> None:
         _CACHE["items"] = instruments
         _CACHE["last_fetch"] = fetched_at
         _CACHE["history_map"] = history_map
+        # Persist to Redis for cross-process cache
+        client = _get_redis()
+        if client:
+            try:
+                client.setex(REDIS_CACHE_KEY, REFRESH_SECONDS * 3, _serialize_cache(instruments, fetched_at, history_map))
+            except Exception:
+                logging.exception("Failed to write cache to redis")
         logging.info("Refreshed %d instruments at %s", len(instruments), fetched_at.isoformat())
     except Exception:
         logging.exception("Error during refresh_data")

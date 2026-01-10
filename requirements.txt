@@ -9,3 +9,4 @@ mypy>=1.13.0
 APScheduler>=3.9.1
 psycopg2-binary>=2.9.9
 gunicorn>=23.0.0
+redis>=5.0.0

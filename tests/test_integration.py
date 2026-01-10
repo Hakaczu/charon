@@ -39,6 +39,9 @@ def fake_data(monkeypatch, app_module):
     # reset cache
     main._CACHE["items"] = []
     main._CACHE["last_fetch"] = None
+    main._CACHE["history_map"] = {}
+    # prepopulate cache via refresh (no fetch during request)
+    main.refresh_data()
     return main
 
 

@@ -80,6 +80,7 @@ Konfigurowalne parametry w `main.py` (oraz przez `.env`):
 - `LOG_FILE` — ścieżka do pliku logów (domyślnie `charon.log`, rotacja 1 MB, 3 kopie).
 - `LOG_FILE` — ścieżka do pliku logów (domyślnie `charon.log`, rotacja 1 MB, 3 kopie).
 - Collector logs: `collector.log` (configurable via `COLLECTOR_LOG_FILE`) - zawiera szczegóły pobrań i zapisu.
+- Cache: `REDIS_URL` i `REDIS_ENABLED` — gdy włączone, snapshot danych (items + historia) jest trzymany w Redisie; widoki nie odpytały NBP podczas requestów, korzystają ze snapshotu odświeżanego przez scheduler.
 
 ## Notatki
 
