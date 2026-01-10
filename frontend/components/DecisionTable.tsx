@@ -1,8 +1,7 @@
 import clsx from "clsx";
 import { formatChange, formatNumber } from "@/lib/format";
 import { Decision } from "@/lib/types";
-
-const badgeClass = (code: string) => `badge ${code.toLowerCase()}`;
+import { getCurrencyIcon } from "@/lib/icons";
 
 export function DecisionTable({ items }: { items: Decision[] }) {
   if (!items.length) {
@@ -30,7 +29,7 @@ export function DecisionTable({ items }: { items: Decision[] }) {
           {items.map((item) => (
             <tr key={item.code}>
               <td>
-                <span className={badgeClass(item.code)}>{item.code.slice(0, 3)}</span>
+                <span style={{ marginRight: 6 }}>{getCurrencyIcon(item.code)}</span>
                 {item.name}
               </td>
               <td className="muted">{item.code}</td>

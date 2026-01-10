@@ -16,9 +16,12 @@ import { HistoryPoint } from "@/lib/types";
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler);
 
-export function RateChart({ code, series }: { code: string; series: HistoryPoint[] }) {
+type Props = { code: string; series: HistoryPoint[]; avg?: number | null };
+
+export function RateChart({ code, series, avg }: Props) {
   const labels = series.map((p) => p.date);
   const data = series.map((p) => p.value);
+  const avgLine = (avg ?? (series.length ? data.reduce((a, b) => a + b, 0) / series.length : null));
 
   const chartData = {
     labels,
@@ -33,6 +36,19 @@ export function RateChart({ code, series }: { code: string; series: HistoryPoint
         pointRadius: 0,
         borderWidth: 2,
       },
+      ...(avgLine !== null
+        ? [
+            {
+              label: `${code} (średnia)`,
+              data: data.map(() => avgLine),
+              borderColor: "#facc15",
+              borderWidth: 2,
+              borderDash: [6, 6],
+              pointRadius: 0,
+              fill: false,
+            },
+          ]
+        : []),
     ],
   };
 

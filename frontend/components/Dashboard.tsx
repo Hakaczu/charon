@@ -51,7 +51,11 @@ export function Dashboard({ snapshot }: { snapshot: Snapshot }) {
         </div>
         <div className="grid-two">
           <div>
-            {selected ? <RateChart code={selected} series={selectedHistory} /> : <div className="muted">Brak danych do wykresu.</div>}
+            {selected ? (
+              <RateChart code={selected} series={selectedHistory} avg={selectedAnalytics.avg} />
+            ) : (
+              <div className="muted">Brak danych do wykresu.</div>
+            )}
           </div>
           <StatCards analytics={selectedAnalytics} />
         </div>
