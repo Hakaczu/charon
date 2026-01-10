@@ -23,7 +23,7 @@ from .nbp_client import (
 
 
 LOGGER_NAME = os.getenv("COLLECTOR_LOGGER_NAME", "charon.collector")
-LOG_FILE = os.getenv("COLLECTOR_LOG_FILE", "collector.log")
+LOG_FILE = os.getenv("COLLECTOR_LOG_FILE", "/app/logs/collector.log")
 
 
 def _get_logger() -> logging.Logger:
@@ -37,6 +37,9 @@ def _get_logger() -> logging.Logger:
             break
 
     if not has_file:
+        log_dir = os.path.dirname(log_file)
+        if log_dir:
+            os.makedirs(log_dir, exist_ok=True)
         formatter = logging.Formatter("[%(asctime)s] [%(levelname)s] %(message)s")
         handler = RotatingFileHandler(log_file, maxBytes=1_000_000, backupCount=3)
         handler.setFormatter(formatter)
