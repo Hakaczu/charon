@@ -1,29 +1,29 @@
 # Charon
 
-Prosta aplikacja w Pythonie, która pobiera bieżące i historyczne kursy walut z NBP (tabela A) oraz cenę złota (NBP `/cenyzlota`). Na podstawie odchylenia od średniej z ostatnich dni wyznacza decyzję **kup / sprzedaj / hold**. Frontend realizuje Next.js, a backend to FastAPI + osobny miner zapisujący snapshot do Redisa.
+Charon fetches current and historical FX rates from the Polish NBP (table A) and gold prices (`/cenyzlota`). It compares the latest rate to the recent average to produce a **buy / sell / hold** signal. The backend is FastAPI plus a separate miner that writes a snapshot to Redis; the frontend is a Next.js app.
 
-## Wymagania
+## Requirements
 
 - Python 3.10+
-- Dostęp do internetu (API NBP)
+- Internet access (NBP API)
 
-## Instalacja
+## Installation (backend)
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\\Scripts\\activate
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-## Uruchomienie (lokalnie)
+## Local run (backend)
 
-API (FastAPI):
+FastAPI API:
 
 ```bash
 uvicorn services.api.main:app --host 0.0.0.0 --port 8000
 ```
 
-Miner (cykliczne pobieranie i zapis snapshotu do Redisa):
+Miner (periodically fetches data and writes a snapshot to Redis):
 
 ```bash
 python -m services.miner.main
@@ -31,62 +31,75 @@ python -m services.miner.main
 
 ### Frontend (Next.js)
 
-Nowy interfejs kliencki w Next.js znajduje się w katalogu `frontend/`. Domyślnie
-łączymy się z FastAPI z `api_main.py` (domyślnie port `8000`).
+The Next.js app lives in `frontend/`. By default it talks to FastAPI on port `8000`.
 
 ```bash
-# 1) Uruchom backend API
+# 1) Start the API
 uvicorn services.api.main:app --host 0.0.0.0 --port 8000
 
-# 2) Frontend
+# 2) Start the frontend
 cd frontend
-cp .env.local.example .env.local   # opcjonalnie, aby ustawić adres API
+cp .env.local.example .env.local   # optional, set API address
 npm install
 npm run dev  # http://localhost:3000
 ```
 
-Zmienne środowiskowe frontu (`frontend/.env.local`):
-- `NEXT_PUBLIC_API_BASE` — adres API FastAPI (np. `http://localhost:8000`).
-- `NEXT_PUBLIC_REFRESH_SECONDS` — (opcjonalnie) częstotliwość odświeżania w sekundach do wyliczenia "następnego odświeżenia".
+Frontend env (`frontend/.env.local`):
+- `NEXT_PUBLIC_API_BASE` — FastAPI address (e.g., `http://localhost:8000`).
+- `NEXT_PUBLIC_REFRESH_SECONDS` — optional refresh cadence used for the next-refresh hint.
 
-### Uruchomienie przez Docker / docker-compose (backend + frontend)
+### Docker / docker-compose (dev stack: backend + frontend)
 
 ```bash
 docker-compose up --build
 ```
 
-- Backend API FastAPI: `http://127.0.0.1:8000/`
-- Frontend Next.js: `http://127.0.0.1:3000/`
-- Domyślnie używany jest Postgres (usługa `db`). Poświadczenia i nazwy znajdziesz w `docker-compose.yml`.
-- Przy pierwszym starcie `db` wykonuje się skrypt `docker/init-db.sql`, który tworzy rolę i bazę `charon`.
-- Logi aplikacji i collectora trafiają do wolumenu `app_logs` (w kontenerze `/app/logs`).
-- Możesz nadpisać zmienne środowiskowe (np. `REFRESH_SECONDS`, `SCHEDULER_ENABLED`, `DATABASE_URL`, `LOG_FILE`, `COLLECTOR_LOG_FILE`) w `docker-compose.yml` lub przez `.env`.
-- Jeśli wcześniej powstał wolumen `db_data` bez użytkownika `charon`, usuń go przed ponownym uruchomieniem: `docker volume rm charon_db_data`.
+- FastAPI backend: `http://127.0.0.1:8000/`
+- Next.js frontend: `http://127.0.0.1:3000/`
+- Postgres (`db`) is used by default; credentials are in `docker-compose.yml`.
+- On first start, `docker/init-db.sql` creates the `charon` role and database.
+- App and collector logs are stored in the `app_logs` volume (mounted to `/app/logs` inside the container).
+- You can override env vars (`REFRESH_SECONDS`, `SCHEDULER_ENABLED`, `DATABASE_URL`, `LOG_FILE`, `COLLECTOR_LOG_FILE`, etc.) via `docker-compose.yml` or a `.env` file.
+- If you previously created a `db_data` volume without the `charon` user, remove it: `docker volume rm charon_db_data`.
 
-Frontend honoruje zmienne `NEXT_PUBLIC_API_BASE` oraz `NEXT_PUBLIC_REFRESH_SECONDS` ustawione w compose (domyślnie `http://api:8000`).
+The frontend respects `NEXT_PUBLIC_API_BASE` and `NEXT_PUBLIC_REFRESH_SECONDS` set in compose (default `http://api:8000`).
 
-### Konfiguracja przez .env
-- Skopiuj `.env.example` do `.env` i dostosuj wartości (dla backendu/minera):
-	- `PORT=8000`
-	- `DATABASE_URL=sqlite:///charon.db` (lokalnie) lub np. `postgresql+psycopg2://user:pass@localhost/dbname`
-	- `REFRESH_SECONDS=3600` (co ile sekund miner odświeża dane z NBP)
-	- `REDIS_URL=redis://localhost:6379/0`, `REDIS_CACHE_KEY=charon:cache`
-	- `COLLECTOR_LOG_FILE=collector.log` (ścieżka logów collectora)
-- Plik `.env` jest ignorowany przez git; wartości możesz nadpisać też zmiennymi środowiskowymi przy uruchomieniu.
-- `python-dotenv` wczytuje `.env` automatycznie przy starcie aplikacji.
+### Production mode with reverse proxy (Nginx, ports 80/443)
 
-### Baza danych
-- Domyślnie używany jest SQLite (`charon.db` w katalogu projektu).
-- Możesz wskazać inny silnik przez `DATABASE_URL` (np. PostgreSQL lub MySQL zgodny z SQLAlchemy).
-- Inicjalizacja tabel odbywa się automatycznie przy starcie aplikacji.
+Run the full stack with Nginx proxying `/api` to the backend and everything else to the frontend using `docker-compose.prod.yml`:
 
-## Testy
+```bash
+docker-compose -f docker-compose.prod.yml up --build
+```
+
+- Nginx listens on `80` and `443` and routes `/api` to `api:8000`, all other traffic to `frontend:3000`.
+- The frontend is configured with `NEXT_PUBLIC_API_BASE=/api`, so all requests go through the proxy.
+- TLS is **not** provided by default (port 443 is exposed without certs). Add your own certificates in `docker/reverse-proxy.conf` if needed.
+
+### .env configuration
+
+Copy `.env.example` to `.env` and adjust (for backend/miner):
+- `PORT=8000`
+- `DATABASE_URL=sqlite:///charon.db` (local) or e.g. `postgresql+psycopg2://user:pass@localhost/dbname`
+- `REFRESH_SECONDS=3600` (how often the miner refreshes NBP data)
+- `REDIS_URL=redis://localhost:6379/0`, `REDIS_CACHE_KEY=charon:cache`
+- `COLLECTOR_LOG_FILE=collector.log` (collector log path)
+
+`.env` is git-ignored; you can also override via environment variables at runtime. `python-dotenv` loads `.env` automatically on start.
+
+### Database
+
+- SQLite (`charon.db` in the project root) is the default.
+- Point `DATABASE_URL` to another engine (PostgreSQL/MySQL compatible with SQLAlchemy) if you prefer.
+- Tables are initialized automatically at app startup.
+
+## Tests
 
 ```bash
 pytest
 ```
 
-### Lint i formatowanie
+### Linting & formatting
 
 ```bash
 ruff check .
@@ -94,25 +107,24 @@ black .
 mypy .
 ```
 
-## Jak to działa
+## How it works
 
-- `charon/nbp_client.py` — proste funkcje do pobierania kursów walut i złota z API NBP (bieżące i historyczne).
-- `charon/decision.py` — heurystyka decyzji: porównuje ostatni kurs do średniej z ostatnich dni; domyślny próg to ±1% od średniej.
-- `charon/db.py` — modele SQLAlchemy i zapisy historii kursów (waluty + złoto), domyślnie SQLite.
-- `services/api/main.py` — FastAPI wystawiające snapshot oraz historię z Redisa.
-- `services/miner/main.py` — cykliczny collector zapisujący snapshot do Redisa.
+- `charon/nbp_client.py` — fetches current and historical FX + gold from the NBP API.
+- `charon/decision.py` — compares the latest rate to the recent average; default threshold ±1%.
+- `charon/db.py` — SQLAlchemy models and history persistence (default SQLite).
+- `services/api/main.py` — FastAPI exposing the snapshot and history from Redis.
+- `services/miner/main.py` — periodic collector writing the snapshot to Redis.
 
-Konfigurowalne parametry w `main.py` (oraz przez `.env`):
-- `HISTORY_DAYS` — ile dni historii uwzględniać (domyślnie 60).
-- `DECISION_BIAS_PERCENT` — próg procentowy odchylenia od średniej dla sygnału kup/sprzedaj (domyślnie 1%).
-- `REFRESH_SECONDS` — co ile sekund odświeżać dane z NBP (domyślnie 3600s); na froncie wyświetlana jest informacja o ostatnim i następnym odświeżeniu.
-- Zestaw walut jest stały (top10 powyżej) — złoto jest zawsze dołączone.
-- `LOG_FILE` — ścieżka do pliku logów (domyślnie `charon.log`, rotacja 1 MB, 3 kopie).
-- `LOG_FILE` — ścieżka do pliku logów (domyślnie `charon.log`, rotacja 1 MB, 3 kopie).
-- Collector logs: `collector.log` (configurable via `COLLECTOR_LOG_FILE`) - zawiera szczegóły pobrań i zapisu.
-- Cache: `REDIS_URL` i `REDIS_ENABLED` — gdy włączone, snapshot danych (items + historia) jest trzymany w Redisie; widoki nie odpytały NBP podczas requestów, korzystają ze snapshotu odświeżanego przez scheduler.
+Configurable parameters (in `main.py` or via `.env`):
+- `HISTORY_DAYS` — how many days of history to consider (default 60).
+- `DECISION_BIAS_PERCENT` — threshold for buy/sell signal (default 1%).
+- `REFRESH_SECONDS` — refresh cadence (default 3600s); the frontend shows last/next refresh.
+- Currency set is fixed (top 10) and gold is always included.
+- `LOG_FILE` — log path (default `charon.log`, rotation 1 MB, 3 backups).
+- Collector logs: `collector.log` (configurable via `COLLECTOR_LOG_FILE`).
+- Cache: `REDIS_URL`, `REDIS_ENABLED` — when enabled, snapshots (items + history) are stored in Redis; views read from the cached snapshot instead of hitting NBP per request.
 
-## Notatki
+## Notes
 
-- Endopoint `/health` zwraca prostą odpowiedź JSON do monitoringu.
-- W pliku `db/charon.sql` jest szkic schematu bazy MySQL dla ewentualnej persystencji, ale aplikacja działa bez bazy.
+- `/health` returns a simple JSON for monitoring.
+- `db/charon.sql` contains a MySQL schema sketch for persistence if needed, but the app runs without it.
