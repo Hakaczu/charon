@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Charon – decyzje walutowe</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
   <style>
     :root {
       color-scheme: light dark;
@@ -78,6 +79,45 @@
     .pill.hold { background: rgba(234, 179, 8, 0.16); color: var(--hold); border: 1px solid rgba(234, 179, 8, 0.4);} 
     .muted { color: var(--muted); font-size: 14px; }
     .value { font-variant-numeric: tabular-nums; }
+    .icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.08);
+      color: var(--text);
+      margin-right: 8px;
+    }
+    .icon i { font-size: 14px; }
+    .icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      font-size: 13px;
+      font-weight: 700;
+      color: #0b1221;
+      margin-right: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+      background: #cbd5e1;
+    }
+    .icon-generic { background: linear-gradient(135deg, #cbd5e1, #94a3b8); }
+    .icon-usd { background: linear-gradient(135deg, #22c55e, #16a34a); color: #0b1221; }
+    .icon-eur { background: linear-gradient(135deg, #38bdf8, #2563eb); color: #0b1221; }
+    .icon-jpy { background: linear-gradient(135deg, #f43f5e, #e11d48); color: #0b1221; }
+    .icon-gbp { background: linear-gradient(135deg, #6366f1, #4338ca); color: #0b1221; }
+    .icon-aud { background: linear-gradient(135deg, #22d3ee, #0ea5e9); color: #0b1221; }
+    .icon-cad { background: linear-gradient(135deg, #f97316, #ea580c); color: #0b1221; }
+    .icon-chf { background: linear-gradient(135deg, #facc15, #eab308); color: #0b1221; }
+    .icon-cny { background: linear-gradient(135deg, #ef4444, #b91c1c); color: #0b1221; }
+    .icon-sek { background: linear-gradient(135deg, #38bdf8, #22c55e); color: #0b1221; }
+    .icon-nzd { background: linear-gradient(135deg, #14b8a6, #0f766e); color: #0b1221; }
+    .icon-xau { background: linear-gradient(135deg, #f59e0b, #d97706); color: #0b1221; }
     .meta {
       display: grid;
       gap: 6px;
@@ -110,7 +150,7 @@
       <tbody>
         {% for item in items %}
         <tr>
-          <td>{{ item.name }}</td>
+           <td><span class="icon"><i class="{{ item.icon_class }}" aria-hidden="true"></i></span>{{ item.name }}</td>
           <td class="muted">{{ item.code }}</td>
           <td class="value">{{ '%.4f'|format(item.latest_rate) }}</td>
           <td class="value">{% if item.change_pct is not none %}{{ '%.2f'|format(item.change_pct) }}%{% else %}—{% endif %}</td>

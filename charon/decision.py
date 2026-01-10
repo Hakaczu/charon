@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from statistics import mean
 from typing import List, Optional
 
@@ -13,6 +13,7 @@ class DecisionResult:
     change_pct: Optional[float]
     decision: str
     basis: str
+    icon_class: str = field(default="fa-solid fa-coins")
 
 
 def _percent_change(current: float, reference: float) -> Optional[float]:

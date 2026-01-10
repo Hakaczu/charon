@@ -3,7 +3,7 @@
 import logging
 import os
 from datetime import datetime, timedelta, timezone
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, TypedDict
 
 from dotenv import load_dotenv
 from flask import Flask, jsonify, render_template
@@ -25,14 +25,49 @@ app = Flask(__name__)
 load_dotenv()
 
 # Konfiguracja
-CURRENCIES_FILTER = os.getenv("CURRENCIES")  # opcjonalna lista kodów, np. "USD,EUR,CHF"
 DECISION_BIAS_PERCENT = 1.0  # próg procentowy względem średniej
 HISTORY_DAYS = 60
 REFRESH_SECONDS = int(os.getenv("REFRESH_SECONDS", "3600"))
 PORT = int(os.getenv("PORT", "5000"))
 
+# Zostawiamy złoto + top10 głównych walut
+TOP10_CURRENCIES = [
+    "USD",
+    "EUR",
+    "JPY",
+    "GBP",
+    "AUD",
+    "CAD",
+    "CHF",
+    "CNY",
+    "SEK",
+    "NZD",
+    "NOK",
+]
+
+# Ikony CSS (klasy) dla walut; fallback na generic
+CURRENCY_ICON_CLASS = {
+    "USD": "fa-solid fa-dollar-sign",
+    "EUR": "fa-solid fa-euro-sign",
+    "JPY": "fa-solid fa-yen-sign",
+    "GBP": "fa-solid fa-sterling-sign",
+    "AUD": "fa-solid fa-dollar-sign",
+    "CAD": "fa-solid fa-dollar-sign",
+    "CHF": "fa-solid fa-coins",
+    "CNY": "fa-solid fa-coins",
+    "SEK": "fa-solid fa-coins",
+    "NZD": "fa-solid fa-dollar-sign",
+    "NOK": "fa-solid fa-coins",
+    "XAU": "fa-solid fa-gem",
+}
+
+class CacheStore(TypedDict):
+    items: List[DecisionResult]
+    last_fetch: Optional[datetime]
+
+
 # Cache danych, aby nie pobierać z NBP przy każdym odświeżeniu strony
-_CACHE: dict[str, object] = {
+_CACHE: CacheStore = {
     "items": [],
     "last_fetch": None,
 }
@@ -44,23 +79,16 @@ db.init_db()
 def _decorate_decision(decision: DecisionResult, code: str, name: str) -> DecisionResult:
     decision.code = code
     decision.name = name
+    decision.icon_class = CURRENCY_ICON_CLASS.get(code.upper(), "fa-solid fa-coins")
     return decision
 
 
-def _filter_codes(all_codes: List[str]) -> List[str]:
-    if not CURRENCIES_FILTER:
-        return all_codes
-    wanted = {code.strip().upper() for code in CURRENCIES_FILTER.split(",") if code.strip()}
-    return [code for code in all_codes if code.upper() in wanted]
-
-
 def _build_instruments() -> Tuple[List[DecisionResult], datetime]:
-    """Pobiera wszystkie kursy NBP (tabela A) + złoto, zapisuje do DB, zwraca decyzje."""
+    """Pobiera top waluty z tabeli A + złoto, zapisuje do DB, zwraca decyzje."""
     instruments: List[DecisionResult] = []
     table = fetch_table("A")
     table_map = {item["code"]: item for item in table}
-    all_codes = [item["code"] for item in table]
-    codes = _filter_codes(all_codes)
+    codes = [code for code in TOP10_CURRENCIES if code in table_map]
 
     with db.get_session() as session:
         for code in codes:
@@ -84,7 +112,7 @@ def _build_instruments() -> Tuple[List[DecisionResult], datetime]:
 
 def _ensure_cached_data() -> Tuple[List[DecisionResult], Optional[datetime], Optional[datetime]]:
     now = datetime.now(timezone.utc)
-    last_fetch: Optional[datetime] = _CACHE.get("last_fetch")  # type: ignore[assignment]
+    last_fetch: Optional[datetime] = _CACHE["last_fetch"]
     needs_refresh = last_fetch is None or (now - last_fetch) >= timedelta(seconds=REFRESH_SECONDS)
 
     if needs_refresh:

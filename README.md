@@ -48,13 +48,13 @@ pytest
 - `charon/nbp_client.py` — proste funkcje do pobierania kursów walut i złota z API NBP (bieżące i historyczne).
 - `charon/decision.py` — heurystyka decyzji: porównuje ostatni kurs do średniej z ostatnich dni; domyślny próg to ±1% od średniej.
 - `charon/db.py` — modele SQLAlchemy i zapisy historii kursów (waluty + złoto), domyślnie SQLite.
-- `main.py` — uruchamia Flask, pobiera dane (wszystkie waluty z tabeli A + złoto), zapisuje je do bazy, buforuje i renderuje frontend (`templates/index.html`).
+- `main.py` — uruchamia Flask, pobiera dane (złoto + top10 walut: USD, EUR, JPY, GBP, AUD, CAD, CHF, CNY, SEK, NZD), zapisuje je do bazy, buforuje i renderuje frontend (`templates/index.html`).
 
 Konfigurowalne parametry w `main.py` (oraz przez `.env`):
-- `CURRENCIES` (env `CURRENCIES`) — opcjonalna lista kodów walut; domyślnie wszystkie z tabeli A.
 - `HISTORY_DAYS` — ile dni historii uwzględniać (domyślnie 60).
 - `DECISION_BIAS_PERCENT` — próg procentowy odchylenia od średniej dla sygnału kup/sprzedaj (domyślnie 1%).
 - `REFRESH_SECONDS` — co ile sekund odświeżać dane z NBP (domyślnie 3600s); na froncie wyświetlana jest informacja o ostatnim i następnym odświeżeniu.
+- Zestaw walut jest stały (top10 powyżej) — złoto jest zawsze dołączone.
 
 ## Notatki
 
