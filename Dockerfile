@@ -19,12 +19,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
-EXPOSE 5000
+EXPOSE 8000
 
 # Default envs (can be overridden at runtime)
-ENV PORT=5000 \
+ENV PORT=8000 \
     DATABASE_URL=sqlite:///charon.db \
     REFRESH_SECONDS=3600
 
-# Use gunicorn for production-grade serving
-CMD ["gunicorn", "-b", "0.0.0.0:5000", "main:app"]
+# Run FastAPI (api service). docker-compose overrides the command as needed.
+CMD ["uvicorn", "services.api.main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -1,16 +1,18 @@
-import os
 from datetime import datetime
 
 import pytest
 
 
-def test_collector_collects_and_logs(monkeypatch, tmp_path, caplog, app_module):
-    main, db = app_module
+def test_collector_collects_and_logs(monkeypatch, tmp_path, caplog, db_module):
     # configure collector log file before importing module so it picks up the env
     log_file = tmp_path / "collector.log"
     monkeypatch.setenv("COLLECTOR_LOG_FILE", str(log_file))
+    import importlib
     import charon.collector as collector
     import charon.nbp_client as nbp
+
+    importlib.reload(nbp)
+    importlib.reload(collector)
 
     FAKE_TABLE = [{"code": "USD", "currency": "US Dollar"}]
     FAKE_HISTORY = [("2024-01-01", 4.0), ("2024-01-02", 4.1)]
@@ -34,9 +36,9 @@ def test_collector_collects_and_logs(monkeypatch, tmp_path, caplog, app_module):
     assert "XAU" in history_map
 
     # DB should have USD and gold rows
-    with db.get_session() as session:
-        assert session.query(db.Rate).count() >= 2
-        assert session.query(db.GoldPrice).count() >= 1
+    with db_module.get_session() as session:
+        assert session.query(db_module.Rate).count() >= 2
+        assert session.query(db_module.GoldPrice).count() >= 1
 
     # caplog should contain informational messages
     assert any("fetched" in rec.getMessage().lower() for rec in caplog.records)

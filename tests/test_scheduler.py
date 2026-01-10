@@ -1,43 +1,46 @@
-import time
-from datetime import datetime
+import importlib
+from datetime import datetime, timezone
 
-import pytest
-
-
-FAKE_TABLE = [{"code": "USD", "currency": "US Dollar"}]
-FAKE_HISTORY = [("2024-01-01", 4.0), ("2024-01-02", 4.1)]
-FAKE_GOLD = [("2024-01-01", 250.0)]
+from charon.decision import DecisionResult
 
 
-def test_refresh_data_populates_cache(monkeypatch, app_module):
-    main, _ = app_module
+class DummyRedis:
+    def __init__(self):
+        self.data = {}
 
-    import charon.nbp_client as nbp
+    def get(self, key):
+        return self.data.get(key)
 
-    monkeypatch.setattr(nbp, "fetch_table", lambda table="A": FAKE_TABLE)
-    monkeypatch.setattr(nbp, "get_recent_currency_history", lambda code, days=60: FAKE_HISTORY)
-    monkeypatch.setattr(nbp, "get_recent_gold_history", lambda days=60: FAKE_GOLD)
-
-    main._CACHE["items"] = []
-    main._CACHE["last_fetch"] = None
-
-    main.refresh_data()
-
-    assert main._CACHE["items"]
-    assert main._CACHE["last_fetch"] is not None
+    def setex(self, key, ttl, value):
+        self.data[key] = value
 
 
-def test_start_and_stop_scheduler(monkeypatch, app_module):
-    main, _ = app_module
-    calls = {"n": 0}
+def test_run_once_stores_snapshot(monkeypatch):
+    import services.miner.main as miner
+    importlib.reload(miner)
 
-    def fake_refresh():
-        calls["n"] += 1
+    fake_redis = DummyRedis()
+    monkeypatch.setattr(miner.cache_utils, "get_redis_client", lambda: fake_redis)
 
-    monkeypatch.setattr(main, "refresh_data", fake_refresh)
+    now = datetime.now(timezone.utc)
+    decisions = [
+        DecisionResult(
+            name="US Dollar",
+            code="USD",
+            latest_rate=4.2,
+            change_pct=0.5,
+            decision="hold",
+            basis="near avg",
+        )
+    ]
+    history_map = {"USD": [("2024-01-01", 4.0), ("2024-01-02", 4.2)]}
 
-    sched = main.start_scheduler(interval_seconds=1, run_immediately=True)
-    time.sleep(1.2)
-    main.stop_scheduler()
+    monkeypatch.setattr(
+        miner.collector,
+        "collect",
+        lambda: (decisions, now, history_map),
+    )
 
-    assert calls["n"] >= 1
+    miner.run_once()
+
+    assert miner.REDIS_CACHE_KEY in fake_redis.data

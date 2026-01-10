@@ -1,9 +1,9 @@
 import importlib
 import sys
 from pathlib import Path
-from typing import Iterator, Tuple
 
 import pytest
+from fastapi.testclient import TestClient
 
 # Ensure project root is on sys.path for module imports
 ROOT = Path(__file__).resolve().parents[1]
@@ -12,22 +12,35 @@ if str(ROOT) not in sys.path:
 importlib.invalidate_caches()
 
 
-@pytest.fixture()
-def app_module(monkeypatch) -> Iterator[Tuple[object, object]]:
-    """Reload modules with in-memory DB and return main module and db module."""
-    monkeypatch.setenv("DATABASE_URL", "sqlite+pysqlite:///:memory:")
-    monkeypatch.setenv("REFRESH_SECONDS", "3600")
+class DummyRedis:
+    def __init__(self):
+        self.storage = {}
 
+    def get(self, key):
+        return self.storage.get(key)
+
+    def setex(self, key, ttl, value):
+        self.storage[key] = value
+
+
+@pytest.fixture()
+def db_module(monkeypatch):
+    """In-memory DB for tests."""
+    monkeypatch.setenv("DATABASE_URL", "sqlite+pysqlite:///:memory:")
     import charon.db as db
-    import main
 
     importlib.reload(db)
-    importlib.reload(main)
-
-    yield main, db
+    db.init_db()
+    return db
 
 
 @pytest.fixture()
-def app_client(app_module):
-    main, _ = app_module
-    return main.app.test_client()
+def api_client(monkeypatch, db_module):
+    """FastAPI test client with fake Redis snapshot store."""
+    import services.api.main as api
+
+    importlib.reload(api)
+    fake_redis = DummyRedis()
+    monkeypatch.setattr(api.cache_utils, "get_redis_client", lambda: fake_redis)
+    client = TestClient(api.app)
+    return client, fake_redis, api

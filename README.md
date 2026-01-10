@@ -1,6 +1,6 @@
 # Charon
 
-Prosta aplikacja w Pythonie, która pobiera bieżące i historyczne kursy walut z NBP (tabela A) oraz cenę złota (NBP `/cenyzlota`). Na podstawie odchylenia od średniej z ostatnich dni wyznacza decyzję **kup / sprzedaj / hold** i prezentuje dane w prostym froncie webowym.
+Prosta aplikacja w Pythonie, która pobiera bieżące i historyczne kursy walut z NBP (tabela A) oraz cenę złota (NBP `/cenyzlota`). Na podstawie odchylenia od średniej z ostatnich dni wyznacza decyzję **kup / sprzedaj / hold**. Frontend realizuje Next.js, a backend to FastAPI + osobny miner zapisujący snapshot do Redisa.
 
 ## Wymagania
 
@@ -15,13 +15,19 @@ source .venv/bin/activate  # Windows: .venv\\Scripts\\activate
 pip install -r requirements.txt
 ```
 
-## Uruchomienie
+## Uruchomienie (lokalnie)
+
+API (FastAPI):
 
 ```bash
-python main.py
+uvicorn services.api.main:app --host 0.0.0.0 --port 8000
 ```
 
-Aplikacja startuje na `http://127.0.0.1:5000/`.
+Miner (cykliczne pobieranie i zapis snapshotu do Redisa):
+
+```bash
+python -m services.miner.main
+```
 
 ### Frontend (Next.js)
 
@@ -29,8 +35,8 @@ Nowy interfejs kliencki w Next.js znajduje się w katalogu `frontend/`. Domyśln
 łączymy się z FastAPI z `api_main.py` (domyślnie port `8000`).
 
 ```bash
-# 1) Uruchom backend API (osobno od aplikacji Flask)
-uvicorn api_main:app --host 0.0.0.0 --port 8000
+# 1) Uruchom backend API
+uvicorn services.api.main:app --host 0.0.0.0 --port 8000
 
 # 2) Frontend
 cd frontend
@@ -60,12 +66,12 @@ docker-compose up --build
 Frontend honoruje zmienne `NEXT_PUBLIC_API_BASE` oraz `NEXT_PUBLIC_REFRESH_SECONDS` ustawione w compose (domyślnie `http://api:8000`).
 
 ### Konfiguracja przez .env
-- Skopiuj `.env.example` do `.env` i dostosuj wartości:
-	- `PORT=5000`
+- Skopiuj `.env.example` do `.env` i dostosuj wartości (dla backendu/minera):
+	- `PORT=8000`
 	- `DATABASE_URL=sqlite:///charon.db` (lokalnie) lub np. `postgresql+psycopg2://user:pass@localhost/dbname`
-	- `REFRESH_SECONDS=3600` (co ile sekund odświeżać dane z NBP)
-	- `SCHEDULER_ENABLED=1` (włącza zadanie okresowego odświeżania)
-	- `LOG_FILE=charon.log`, `COLLECTOR_LOG_FILE=collector.log` (ścieżki logów)
+	- `REFRESH_SECONDS=3600` (co ile sekund miner odświeża dane z NBP)
+	- `REDIS_URL=redis://localhost:6379/0`, `REDIS_CACHE_KEY=charon:cache`
+	- `COLLECTOR_LOG_FILE=collector.log` (ścieżka logów collectora)
 - Plik `.env` jest ignorowany przez git; wartości możesz nadpisać też zmiennymi środowiskowymi przy uruchomieniu.
 - `python-dotenv` wczytuje `.env` automatycznie przy starcie aplikacji.
 
@@ -93,7 +99,8 @@ mypy .
 - `charon/nbp_client.py` — proste funkcje do pobierania kursów walut i złota z API NBP (bieżące i historyczne).
 - `charon/decision.py` — heurystyka decyzji: porównuje ostatni kurs do średniej z ostatnich dni; domyślny próg to ±1% od średniej.
 - `charon/db.py` — modele SQLAlchemy i zapisy historii kursów (waluty + złoto), domyślnie SQLite.
-- `main.py` — uruchamia Flask (w obrazie serwowany przez gunicorn), pobiera dane (złoto + top10 walut: USD, EUR, JPY, GBP, AUD, CAD, CHF, CNY, SEK, NZD, NOK), zapisuje je do bazy, buforuje i renderuje frontend (`templates/index.html`).
+- `services/api/main.py` — FastAPI wystawiające snapshot oraz historię z Redisa.
+- `services/miner/main.py` — cykliczny collector zapisujący snapshot do Redisa.
 
 Konfigurowalne parametry w `main.py` (oraz przez `.env`):
 - `HISTORY_DAYS` — ile dni historii uwzględniać (domyślnie 60).
