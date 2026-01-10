@@ -62,6 +62,21 @@ services:
       - "6379:6379"
     restart: unless-stopped
 
+  frontend:
+    build:
+      context: ./frontend
+    container_name: charon-frontend
+    environment:
+      NEXT_PUBLIC_API_BASE: http://api:8000
+      NEXT_PUBLIC_REFRESH_SECONDS: 3600
+      NODE_ENV: production
+    ports:
+      - "3000:3000"
+    depends_on:
+      api:
+        condition: service_started
+    restart: unless-stopped
+
 volumes:
   db_data:
   app_logs:

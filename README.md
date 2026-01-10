@@ -23,18 +23,41 @@ python main.py
 
 Aplikacja startuje na `http://127.0.0.1:5000/`.
 
-### Uruchomienie przez Docker / docker-compose
+### Frontend (Next.js)
+
+Nowy interfejs kliencki w Next.js znajduje się w katalogu `frontend/`. Domyślnie
+łączymy się z FastAPI z `api_main.py` (domyślnie port `8000`).
+
+```bash
+# 1) Uruchom backend API (osobno od aplikacji Flask)
+uvicorn api_main:app --host 0.0.0.0 --port 8000
+
+# 2) Frontend
+cd frontend
+cp .env.local.example .env.local   # opcjonalnie, aby ustawić adres API
+npm install
+npm run dev  # http://localhost:3000
+```
+
+Zmienne środowiskowe frontu (`frontend/.env.local`):
+- `NEXT_PUBLIC_API_BASE` — adres API FastAPI (np. `http://localhost:8000`).
+- `NEXT_PUBLIC_REFRESH_SECONDS` — (opcjonalnie) częstotliwość odświeżania w sekundach do wyliczenia "następnego odświeżenia".
+
+### Uruchomienie przez Docker / docker-compose (backend + frontend)
 
 ```bash
 docker-compose up --build
 ```
 
-- Aplikacja będzie dostępna na `http://127.0.0.1:5000/`.
+- Backend API FastAPI: `http://127.0.0.1:8000/`
+- Frontend Next.js: `http://127.0.0.1:3000/`
 - Domyślnie używany jest Postgres (usługa `db`). Poświadczenia i nazwy znajdziesz w `docker-compose.yml`.
 - Przy pierwszym starcie `db` wykonuje się skrypt `docker/init-db.sql`, który tworzy rolę i bazę `charon`.
 - Logi aplikacji i collectora trafiają do wolumenu `app_logs` (w kontenerze `/app/logs`).
 - Możesz nadpisać zmienne środowiskowe (np. `REFRESH_SECONDS`, `SCHEDULER_ENABLED`, `DATABASE_URL`, `LOG_FILE`, `COLLECTOR_LOG_FILE`) w `docker-compose.yml` lub przez `.env`.
 - Jeśli wcześniej powstał wolumen `db_data` bez użytkownika `charon`, usuń go przed ponownym uruchomieniem: `docker volume rm charon_db_data`.
+
+Frontend honoruje zmienne `NEXT_PUBLIC_API_BASE` oraz `NEXT_PUBLIC_REFRESH_SECONDS` ustawione w compose (domyślnie `http://api:8000`).
 
 ### Konfiguracja przez .env
 - Skopiuj `.env.example` do `.env` i dostosuj wartości:
