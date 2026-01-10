@@ -42,3 +42,6 @@ out/
 ### python venv ###
 env
 TODO.md
+
+# lokalne zmienne środowiskowe
+.env

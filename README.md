@@ -23,6 +23,17 @@ python main.py
 
 Aplikacja startuje na `http://127.0.0.1:5000/`.
 
+### Konfiguracja przez .env
+- Skopiuj `.env.example` do `.env` i dostosuj wartości:
+	- `PORT=5000`
+	- `DATABASE_URL=sqlite:///charon.db` (lub np. `postgresql://user:pass@localhost/dbname`)
+- Plik `.env` jest ignorowany przez git; wartości możesz nadpisać też zmiennymi środowiskowymi przy uruchomieniu.
+
+### Baza danych
+- Domyślnie używany jest SQLite (`charon.db` w katalogu projektu).
+- Możesz wskazać inny silnik przez `DATABASE_URL` (np. PostgreSQL lub MySQL zgodny z SQLAlchemy).
+- Inicjalizacja tabel odbywa się automatycznie przy starcie aplikacji.
+
 ## Testy
 
 ```bash
@@ -33,7 +44,8 @@ pytest
 
 - `charon/nbp_client.py` — proste funkcje do pobierania kursów walut i złota z API NBP (bieżące i historyczne).
 - `charon/decision.py` — heurystyka decyzji: porównuje ostatni kurs do średniej z ostatnich dni; domyślny próg to ±1% od średniej.
-- `main.py` — uruchamia Flask, pobiera dane, liczy decyzje i renderuje frontend (`templates/index.html`).
+- `charon/db.py` — modele SQLAlchemy i zapisy historii kursów (waluty + złoto), domyślnie SQLite.
+- `main.py` — uruchamia Flask, pobiera dane, zapisuje je do bazy, liczy decyzje i renderuje frontend (`templates/index.html`).
 
 Konfigurowalne stałe w `main.py`:
 - `CURRENCIES` — listę obserwowanych walut możesz zmienić wedle potrzeb.
