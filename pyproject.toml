@@ -1,8 +1,0 @@
-[tool.black]
-line-length = 100
-target-version = ["py310"]
-
-[tool.ruff]
-line-length = 100
-extend-select = ["I"]  # isort-like import sorting
-
