@@ -279,6 +279,24 @@ with tabs[1]:
 
 with tabs[2]:
     st.header("Miner Status")
+    
+    # Upcoming Jobs Section
+    upcoming = fetch_data("stats/upcoming")
+    if upcoming:
+        u_col1, u_col2, u_col3 = st.columns(3)
+        
+        # Parse strings to datetime for nicer formatting if needed, or just display
+        next_rates = pd.to_datetime(upcoming.get('import_rates')).strftime('%H:%M:%S')
+        next_gold = pd.to_datetime(upcoming.get('import_gold')).strftime('%H:%M:%S')
+        server_time = pd.to_datetime(upcoming.get('server_time')).strftime('%H:%M:%S')
+
+        u_col1.metric("Next Rates Import", next_rates)
+        u_col2.metric("Next Gold Import", next_gold)
+        u_col3.metric("Server Time", server_time)
+    
+    st.divider()
+    
+    # Existing Stats Table
     stats = fetch_data("stats/miner")
     if stats:
         df_stats = pd.DataFrame(stats)

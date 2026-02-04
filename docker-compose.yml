@@ -40,6 +40,7 @@ services:
       DATABASE_URL: postgresql+asyncpg://charon:charon_password@db:5432/charon_db
       REDIS_URL: redis://redis:6379/0
       REDIS_ENABLED: 1
+      TZ: Europe/Warsaw
     volumes:
       - ./src/miner:/app/src/miner
       - ./src/shared:/app/src/shared
@@ -60,6 +61,7 @@ services:
       DATABASE_URL: postgresql+asyncpg://charon:charon_password@db:5432/charon_db
       REDIS_URL: redis://redis:6379/0
       REDIS_ENABLED: 1
+      TZ: Europe/Warsaw
     volumes:
       - ./src/brain:/app/src/brain
       - ./src/shared:/app/src/shared
@@ -82,6 +84,7 @@ services:
       DATABASE_URL: postgresql+asyncpg://charon:charon_password@db:5432/charon_db
       REDIS_URL: redis://redis:6379/0
       REDIS_ENABLED: 1
+      TZ: Europe/Warsaw
     volumes:
       - ./src/api:/app/src/api
       - ./src/shared:/app/src/shared

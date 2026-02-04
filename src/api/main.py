@@ -93,6 +93,9 @@ async def get_signals(
     result = await db.execute(query)
     return result.scalars().all()
 
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
+
 @app.get("/stats/miner")
 async def get_miner_stats(
     limit: int = 10,
@@ -101,3 +104,29 @@ async def get_miner_stats(
     query = select(JobLog).order_by(desc(JobLog.started_at)).limit(limit)
     result = await db.execute(query)
     return result.scalars().all()
+
+@app.get("/stats/upcoming")
+async def get_upcoming_jobs():
+    """
+    Calculates the next scheduled run times based on the fixed cron schedule in Europe/Warsaw.
+    Rates: Every hour at minute 0.
+    Gold: Every hour at minute 2.
+    """
+    tz = ZoneInfo("Europe/Warsaw")
+    now = datetime.now(tz)
+    
+    # Calculate next Rates job (Minute 0)
+    next_rates = now.replace(minute=0, second=0, microsecond=0)
+    if next_rates <= now:
+        next_rates += timedelta(hours=1)
+        
+    # Calculate next Gold job (Minute 2)
+    next_gold = now.replace(minute=2, second=0, microsecond=0)
+    if next_gold <= now:
+        next_gold += timedelta(hours=1)
+        
+    return {
+        "import_rates": next_rates,
+        "import_gold": next_gold,
+        "server_time": now
+    }
