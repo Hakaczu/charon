@@ -129,7 +129,7 @@ def plot_mini_chart(title, prices_data, signals_data, height=500):
 # Main UI
 st.title("Charon: Market Overview")
 
-tabs = st.tabs(["Markets", "Signals Log", "Miner Stats", "Backtesting", "Analysis"])
+tabs = st.tabs(["Markets", "Signals Log", "Miner Stats", "Backtesting", "Analysis", "Finances"])
 
 with tabs[0]:
     # --- TICKER / METRICS ROW ---
@@ -435,5 +435,210 @@ with tabs[4]:
             * **-1.0 (Dark Red):** Perfect negative correlation (move in opposite directions).
             * **0.0 (White):** No correlation.
             """)
+
+    st.divider()
+    st.header("💰 Investment Profit Calculator")
+    st.write("Calculates hypothetical profit if you had invested at the time of the latest **BUY** signal.")
+    
+    calc_amount = st.number_input("Investment Amount (PLN)", value=1000, step=100)
+    
+    # Get all latest signals
+    all_latest_signals = fetch_data("signals", {"limit": 100})
+    if all_latest_signals:
+        target_assets = ["GOLD", "USD", "EUR", "CHF", "GBP", "JPY", "CAD", "AUD"]
+        
+        # Filter to only the most recent BUY signal per TARGET asset
+        latest_buys = {}
+        for s in all_latest_signals:
+            if s['asset_code'] in target_assets and s['signal'] == "BUY" and s['asset_code'] not in latest_buys:
+                latest_buys[s['asset_code']] = s
+        
+        if latest_buys:
+            calc_cols = st.columns(4)
+            for idx, (code, signal_data) in enumerate(latest_buys.items()):
+                # Fetch current price
+                endpoint = "gold" if code == "GOLD" else "rates"
+                params = {"limit": 1}
+                if code != "GOLD": params["code"] = code
+                curr_data = fetch_data(endpoint, params)
+                
+                if curr_data:
+                    current_price = float(curr_data[0].get('rate_mid', curr_data[0].get('price')))
+                    buy_price = float(signal_data['price_at_signal'])
+                    
+                    # Calculation
+                    units = calc_amount / buy_price
+                    current_value = units * current_price
+                    profit = current_value - calc_amount
+                    profit_pct = (profit / calc_amount) * 100
+                    
+                    with calc_cols[idx % 4]:
+                        with st.container(border=True):
+                            st.write(f"**{code}**")
+                            st.caption(f"Bought at: {buy_price:.4f}")
+                            st.metric("Current Value", f"{current_value:.2f}", f"{profit_pct:.2f}%")
+                            st.write(f"Profit: **{profit:.2f} PLN**")
         else:
-            st.warning("Could not calculate correlation. Not enough overlapping data.")
+            st.info("No active BUY signals found in the recent history to calculate from.")
+    else:
+        st.warning("Could not fetch signals for calculation.")
+
+    st.divider()
+    st.header("🔮 AI Price Forecasting (Prophet)")
+    st.write("AI-powered prediction of future price trends for the next 7 days.")
+    
+    f_assets = ["GOLD", "USD", "EUR", "CHF", "GBP", "JPY", "CAD", "AUD"]
+    f_asset = st.selectbox("Select Asset to Forecast", f_assets)
+    
+    if st.button("🔮 Run AI Forecast", type="primary"):
+        with st.spinner(f"Training AI model for {f_asset}... This may take a moment."):
+            try:
+                # API Call
+                f_data = fetch_data("predict", {"asset_code": f_asset, "days": 7})
+                
+                if f_data:
+                    df_f = pd.DataFrame(f_data)
+                    df_f['ds'] = pd.to_datetime(df_f['ds'])
+                    
+                    # Create Forecast Chart
+                    fig_f = go.Figure()
+                    
+                    # Uncertainty Interval
+                    fig_f.add_trace(go.Scatter(
+                        x=df_f['ds'].tolist() + df_f['ds'].tolist()[::-1],
+                        y=df_f['yhat_upper'].tolist() + df_f['yhat_lower'].tolist()[::-1],
+                        fill='toself',
+                        fillcolor='rgba(0,176,246,0.2)',
+                        line=dict(color='rgba(255,255,255,0)'),
+                        hoverinfo="skip",
+                        showlegend=False,
+                        name='Uncertainty'
+                    ))
+                    
+                    # Predicted line
+                    fig_f.add_trace(go.Scatter(
+                        x=df_f['ds'], y=df_f['yhat'],
+                        line=dict(color='rgb(0,176,246)'),
+                        name='Predicted Price'
+                    ))
+                    
+                    fig_f.update_layout(
+                        title=f"7-Day Forecast for {f_asset}",
+                        template="plotly_white",
+                        yaxis_title="Estimated Price",
+                        height=400
+                    )
+                    
+                    st.plotly_chart(fig_f, use_container_width=True)
+                    st.success(f"Forecast complete. The blue line represents the predicted trend.")
+                else:
+                    st.error("Prediction failed. Try again later.")
+            except Exception as e:
+                st.error(f"Error during forecasting: {e}")
+
+with tabs[5]:
+    st.header("💰 Personal Finance Tools")
+    
+    f_col1, f_col2 = st.tabs(["🔥 FIRE Calculator", "🏠 Mortgage Calculator"])
+    
+    with f_col1:
+        st.subheader("Financial Independence, Retire Early")
+        c1, c2 = st.columns(2)
+        with c1:
+            curr_savings = st.number_input("Current Savings (PLN)", value=50000, step=5000)
+            monthly_invest = st.number_input("Monthly Investment (PLN)", value=2000, step=500)
+            expected_return = st.slider("Nominal Annual Return (%)", 1.0, 15.0, 7.0)
+        with c2:
+            monthly_expenses_retirement = st.number_input("Target Monthly Income (Today's Value)", value=5000, step=500)
+            swr = st.slider("Safe Withdrawal Rate (%)", 2.0, 5.0, 4.0)
+            inflation_rate = st.slider("Est. Annual Inflation (%)", 0.0, 10.0, 3.0)
+            
+        # 1. Calculate Target Capital in Today's Purchasing Power
+        target_capital_today = (monthly_expenses_retirement * 12) / (swr / 100)
+        
+        # 2. Calculate Real Rate of Return (Fisher Equation approx)
+        # real_r = (1 + nom) / (1 + inf) - 1
+        real_annual_return = (1 + expected_return/100) / (1 + inflation_rate/100) - 1
+        real_monthly_rate = (1 + real_annual_return)**(1/12) - 1
+        
+        # 3. Simulation (in Real Terms - purchasing power)
+        months = 0
+        balance_real = curr_savings
+        
+        while balance_real < target_capital_today and months < 1200: # max 100 years
+            balance_real = (balance_real + monthly_invest) * (1 + real_monthly_rate)
+            months += 1
+        
+        years_to_fire = months / 12
+        
+        # 4. Calculate Nominal Future Value for context
+        # How much nominal PLN do you actually need in the future to equal target_capital_today?
+        future_inflation_factor = (1 + inflation_rate/100)**years_to_fire
+        target_capital_future_nominal = target_capital_today * future_inflation_factor
+        future_monthly_nominal = monthly_expenses_retirement * future_inflation_factor
+        
+        st.divider()
+        m1, m2, m3 = st.columns(3)
+        m1.metric("Real Target Capital", f"{target_capital_today:,.0f} PLN", help="Amount needed in today's money")
+        m2.metric("Years to FIRE", f"{years_to_fire:.1f} years", f"Real Return: {real_annual_return*100:.2f}%")
+        m3.metric("Inflation Impact", f"x {future_inflation_factor:.2f}", help="How much prices will rise by then")
+        
+        if years_to_fire >= 100:
+            st.warning("Based on these numbers (especially inflation), it's very hard to reach FIRE. Try increasing investment or return.")
+        else:
+            st.success(f"You will reach financial independence in **{years_to_fire:.1f} years**.")
+            st.info(f"""
+            **Inflation Reality Check:**
+            To have the purchasing power of **{monthly_expenses_retirement:,.0f} PLN** today, in {years_to_fire:.1f} years you will need a nominal monthly income of **{future_monthly_nominal:,.0f} PLN**.
+            
+            Your investment portfolio will need to grow to nominally **{target_capital_future_nominal:,.0f} PLN**.
+            """)
+
+    with f_col2:
+        st.subheader("Mortgage & Overpayment Simulator")
+        mc1, mc2 = st.columns(2)
+        with mc1:
+            loan_amount = st.number_input("Loan Amount (PLN)", value=400000, step=10000)
+            interest_rate = st.number_input("Annual Interest Rate (%)", value=7.5, step=0.1)
+            loan_years = st.number_input("Loan Term (Years)", value=30, step=1)
+        with mc2:
+            overpayment = st.number_input("Monthly Overpayment (PLN)", value=0, step=100)
+            
+        # Standard Installment (Annuity)
+        m_rate = interest_rate / 100 / 12
+        n_months = loan_years * 12
+        if m_rate > 0:
+            standard_installment = loan_amount * (m_rate * (1 + m_rate)**n_months) / ((1 + m_rate)**n_months - 1)
+        else:
+            standard_installment = loan_amount / n_months
+            
+        # Simulation with overpayment
+        total_paid = 0
+        total_interest = 0
+        remaining_balance = loan_amount
+        actual_months = 0
+        
+        while remaining_balance > 0 and actual_months < 600:
+            interest_part = remaining_balance * m_rate
+            principal_part = standard_installment - interest_part
+            
+            # Apply installment + overpayment
+            payment = min(remaining_balance + interest_part, standard_installment + overpayment)
+            
+            total_interest += interest_part
+            remaining_balance -= (payment - interest_part)
+            total_paid += payment
+            actual_months += 1
+            
+        st.divider()
+        mm1, mm2, mm3 = st.columns(3)
+        mm1.metric("Standard Installment", f"{standard_installment:,.2f} PLN")
+        mm2.metric("Actual Duration", f"{actual_months/12:.1f} years")
+        mm3.metric("Total Interest", f"{total_interest:,.0f} PLN")
+        
+        savings_interest = (standard_installment * n_months) - total_paid
+        if overpayment > 0:
+            st.info(f"By overpaying **{overpayment} PLN** monthly, you save **{savings_interest:,.0f} PLN** in interest and shorten the loan by **{loan_years - actual_months/12:.1f} years**.")
+        else:
+            st.write(f"Total cost of loan: **{total_paid:,.0f} PLN**")
+

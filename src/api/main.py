@@ -207,3 +207,46 @@ async def get_correlation_matrix(db: AsyncSession = Depends(get_db)):
     
     # Format for JSON response (dict of dicts)
     return corr_matrix.to_dict()
+
+@app.get("/predict")
+@cache(expire=3600)
+async def predict_future(
+    asset_code: str = Query(..., description="Currency code (e.g. USD) or 'GOLD'"),
+    days: int = 7,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Predicts future prices for the next X days using Facebook Prophet.
+    """
+    from prophet import Prophet
+    
+    # 1. Fetch History (last 2 years for better seasonality)
+    if asset_code.upper() == "GOLD":
+        stmt = select(GoldPrice).order_by(GoldPrice.effective_date.asc())
+        result = await db.execute(stmt)
+        data = result.scalars().all()
+        df = pd.DataFrame([{'ds': d.effective_date, 'y': float(d.price)} for d in data])
+    else:
+        stmt = select(Rate).where(Rate.currency_code == asset_code.upper()).order_by(Rate.effective_date.asc())
+        result = await db.execute(stmt)
+        data = result.scalars().all()
+        df = pd.DataFrame([{'ds': d.effective_date, 'y': float(d.rate_mid)} for d in data])
+
+    if len(df) < 30:
+        raise HTTPException(status_code=400, detail="Not enough data for prediction")
+
+    # Prophet expects 'ds' to be datetime naive
+    df['ds'] = pd.to_datetime(df['ds']).dt.tz_localize(None)
+
+    # 2. Train Model
+    m = Prophet(daily_seasonality=False) # NBP is daily anyway
+    m.fit(df)
+
+    # 3. Forecast
+    future = m.make_future_dataframe(periods=days)
+    forecast = m.predict(future)
+
+    # Return only the future part
+    predictions = forecast.iloc[-days:][['ds', 'yhat', 'yhat_lower', 'yhat_upper']]
+    
+    return predictions.to_dict(orient='records')
