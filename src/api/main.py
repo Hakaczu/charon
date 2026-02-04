@@ -175,9 +175,9 @@ async def run_backtest(
 @cache(expire=3600)
 async def get_correlation_matrix(db: AsyncSession = Depends(get_db)):
     """
-    Calculates correlation matrix between Gold and Top 7 currencies for the last 180 days.
+    Calculates correlation matrix between Gold and Top currencies for the last 180 days.
     """
-    assets = ["GOLD", "USD", "EUR", "CHF", "GBP", "JPY", "CAD", "AUD"]
+    assets = ["GOLD", "USD", "EUR", "CHF", "GBP", "JPY", "CAD", "AUD", "NOK"]
     merged_df = pd.DataFrame()
 
     for asset in assets:

@@ -1,6 +1,7 @@
 import streamlit as st
 import httpx
 import pandas as pd
+import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import os
@@ -135,7 +136,7 @@ with tabs[0]:
     # --- TICKER / METRICS ROW ---
     st.markdown("### 📊 Market Snapshot")
     
-    top_assets = ["GOLD", "USD", "EUR", "CHF", "GBP", "JPY", "CAD", "AUD"]
+    top_assets = ["GOLD", "USD", "EUR", "CHF", "GBP", "JPY", "CAD", "AUD", "NOK"]
     cols = st.columns(len(top_assets))
     
     for idx, asset_code in enumerate(top_assets):
@@ -196,10 +197,10 @@ with tabs[0]:
         'type': 'gold'
     })
     
-    # 2. Add Top 7 Currencies only
+    # 2. Add Top 7 Currencies only + NOK
     currencies = fetch_data("currencies")
     if currencies:
-        PRIORITY_ORDER = ["USD", "EUR", "CHF", "GBP", "JPY", "CAD", "AUD"]
+        PRIORITY_ORDER = ["USD", "EUR", "CHF", "GBP", "JPY", "CAD", "AUD", "NOK"]
         curr_map = {c['code']: c for c in currencies}
         
         for p_code in PRIORITY_ORDER:
@@ -399,343 +400,126 @@ with tabs[3]:
                 st.error(f"Error: {e}")
 
 with tabs[4]:
-    st.header("Market Correlation Analysis")
-    st.write("Correlation matrix based on the last 180 days of price data.")
+    st.header("Advanced Market Analysis")
     
-    with st.spinner("Calculating correlation matrix..."):
-        corr_data = fetch_data("stats/correlation")
-        
-        if corr_data:
-            df_corr = pd.DataFrame(corr_data)
-            
-            # Create Plotly Heatmap
-            fig_corr = go.Figure(data=go.Heatmap(
-                z=df_corr.values,
-                x=df_corr.columns,
-                y=df_corr.index,
-                colorscale='RdBu', # Red-Blue scale (Red = Negative, Blue = Positive)
-                zmin=-1, zmax=1,
-                text=df_corr.round(2).values,
-                texttemplate="%{text}",
-                hoverongaps=False
-            ))
-            
-            fig_corr.update_layout(
-                title="Asset Correlation Heatmap (Pearson)",
-                height=600,
-                xaxis_showgrid=False,
-                yaxis_showgrid=False
-            )
-            
-            st.plotly_chart(fig_corr, use_container_width=True)
-            
-            st.info("""
-            **How to read this?**
-            * **1.0 (Dark Blue):** Perfect positive correlation (move together).
-            * **-1.0 (Dark Red):** Perfect negative correlation (move in opposite directions).
-            * **0.0 (White):** No correlation.
-            """)
-
-    st.divider()
-    st.header("💰 Investment Profit Calculator")
-    st.write("Calculates hypothetical profit if you had invested at the time of the latest **BUY** signal.")
+    a_col1, a_col2, a_col3, a_col4 = st.tabs(["🔥 Correlation", "📅 Seasonality", "🔮 AI Forecast", "💰 Profit Calc"])
     
-    calc_amount = st.number_input("Investment Amount (PLN)", value=1000, step=100)
-    
-    # Get all latest signals
-    all_latest_signals = fetch_data("signals", {"limit": 100})
-    if all_latest_signals:
-        target_assets = ["GOLD", "USD", "EUR", "CHF", "GBP", "JPY", "CAD", "AUD"]
-        
-        # Filter to only the most recent BUY signal per TARGET asset
-        latest_buys = {}
-        for s in all_latest_signals:
-            if s['asset_code'] in target_assets and s['signal'] == "BUY" and s['asset_code'] not in latest_buys:
-                latest_buys[s['asset_code']] = s
-        
-        if latest_buys:
-            calc_cols = st.columns(4)
-            for idx, (code, signal_data) in enumerate(latest_buys.items()):
-                # Fetch current price
-                endpoint = "gold" if code == "GOLD" else "rates"
-                params = {"limit": 1}
-                if code != "GOLD": params["code"] = code
-                curr_data = fetch_data(endpoint, params)
-                
-                if curr_data:
-                    current_price = float(curr_data[0].get('rate_mid', curr_data[0].get('price')))
-                    buy_price = float(signal_data['price_at_signal'])
-                    
-                    # Calculation
-                    units = calc_amount / buy_price
-                    current_value = units * current_price
-                    profit = current_value - calc_amount
-                    profit_pct = (profit / calc_amount) * 100
-                    
-                    with calc_cols[idx % 4]:
-                        with st.container(border=True):
-                            st.write(f"**{code}**")
-                            st.caption(f"Bought at: {buy_price:.4f}")
-                            st.metric("Current Value", f"{current_value:.2f}", f"{profit_pct:.2f}%")
-                            st.write(f"Profit: **{profit:.2f} PLN**")
-        else:
-            st.info("No active BUY signals found in the recent history to calculate from.")
-    else:
-        st.warning("Could not fetch signals for calculation.")
-
-    st.divider()
-    st.header("🔮 AI Price Forecasting (Prophet)")
-    st.write("AI-powered prediction of future price trends for the next 7 days.")
-    
-    f_assets = ["GOLD", "USD", "EUR", "CHF", "GBP", "JPY", "CAD", "AUD"]
-    f_asset = st.selectbox("Select Asset to Forecast", f_assets)
-    
-    if st.button("🔮 Run AI Forecast", type="primary"):
-        with st.spinner(f"Training AI model for {f_asset}... This may take a moment."):
-            try:
-                # API Call
-                f_data = fetch_data("predict", {"asset_code": f_asset, "days": 7})
-                
-                if f_data:
-                    df_f = pd.DataFrame(f_data)
-                    df_f['ds'] = pd.to_datetime(df_f['ds'])
-                    
-                    # Create Forecast Chart
-                    fig_f = go.Figure()
-                    
-                    # Uncertainty Interval
-                    fig_f.add_trace(go.Scatter(
-                        x=df_f['ds'].tolist() + df_f['ds'].tolist()[::-1],
-                        y=df_f['yhat_upper'].tolist() + df_f['yhat_lower'].tolist()[::-1],
-                        fill='toself',
-                        fillcolor='rgba(0,176,246,0.2)',
-                        line=dict(color='rgba(255,255,255,0)'),
-                        hoverinfo="skip",
-                        showlegend=False,
-                        name='Uncertainty'
-                    ))
-                    
-                    # Predicted line
-                    fig_f.add_trace(go.Scatter(
-                        x=df_f['ds'], y=df_f['yhat'],
-                        line=dict(color='rgb(0,176,246)'),
-                        name='Predicted Price'
-                    ))
-                    
-                    fig_f.update_layout(
-                        title=f"7-Day Forecast for {f_asset}",
-                        template="plotly_white",
-                        yaxis_title="Estimated Price",
-                        height=400
-                    )
-                    
-                    st.plotly_chart(fig_f, use_container_width=True)
-                    st.success(f"Forecast complete. The blue line represents the predicted trend.")
-                else:
-                    st.error("Prediction failed. Try again later.")
-            except Exception as e:
-                st.error(f"Error during forecasting: {e}")
-
-with tabs[5]:
-    st.header("💰 Personal Finance Tools")
-    
-    f_col1, f_col2, f_col3 = st.tabs(["🔥 FIRE Calculator", "🏠 Mortgage Calculator", "⚖️ Rent vs Buy Strategy"])
-    
-    with f_col1:
-        st.subheader("Financial Independence, Retire Early")
-        c1, c2 = st.columns(2)
-        with c1:
-            curr_savings = st.number_input("Current Savings (PLN)", value=50000, step=5000)
-            monthly_invest = st.number_input("Monthly Investment (PLN)", value=2000, step=500)
-            expected_return = st.slider("Nominal Annual Return (%)", 1.0, 15.0, 7.0)
-        with c2:
-            monthly_expenses_retirement = st.number_input("Target Monthly Income (Today's Value)", value=5000, step=500)
-            swr = st.slider("Safe Withdrawal Rate (%)", 2.0, 5.0, 4.0)
-            inflation_rate = st.slider("Est. Annual Inflation (%)", 0.0, 10.0, 3.0)
-            
-        # 1. Calculate Target Capital in Today's Purchasing Power
-        target_capital_today = (monthly_expenses_retirement * 12) / (swr / 100)
-        
-        # 2. Calculate Real Rate of Return (Fisher Equation approx)
-        # real_r = (1 + nom) / (1 + inf) - 1
-        real_annual_return = (1 + expected_return/100) / (1 + inflation_rate/100) - 1
-        real_monthly_rate = (1 + real_annual_return)**(1/12) - 1
-        
-        # 3. Simulation (in Real Terms - purchasing power)
-        months = 0
-        balance_real = curr_savings
-        
-        while balance_real < target_capital_today and months < 1200: # max 100 years
-            balance_real = (balance_real + monthly_invest) * (1 + real_monthly_rate)
-            months += 1
-        
-        years_to_fire = months / 12
-        
-        # 4. Calculate Nominal Future Value for context
-        # How much nominal PLN do you actually need in the future to equal target_capital_today?
-        future_inflation_factor = (1 + inflation_rate/100)**years_to_fire
-        target_capital_future_nominal = target_capital_today * future_inflation_factor
-        future_monthly_nominal = monthly_expenses_retirement * future_inflation_factor
-        
-        st.divider()
-        m1, m2, m3 = st.columns(3)
-        m1.metric("Real Target Capital", f"{target_capital_today:,.0f} PLN", help="Amount needed in today's money")
-        m2.metric("Years to FIRE", f"{years_to_fire:.1f} years", f"Real Return: {real_annual_return*100:.2f}%")
-        m3.metric("Inflation Impact", f"x {future_inflation_factor:.2f}", help="How much prices will rise by then")
-        
-        if years_to_fire >= 100:
-            st.warning("Based on these numbers (especially inflation), it's very hard to reach FIRE. Try increasing investment or return.")
-        else:
-            st.success(f"You will reach financial independence in **{years_to_fire:.1f} years**.")
-            st.info(f"""
-            **Inflation Reality Check:**
-            To have the purchasing power of **{monthly_expenses_retirement:,.0f} PLN** today, in {years_to_fire:.1f} years you will need a nominal monthly income of **{future_monthly_nominal:,.0f} PLN**.
-            
-            Your investment portfolio will need to grow to nominally **{target_capital_future_nominal:,.0f} PLN**.
-            """)
-
-    with f_col2:
-        st.subheader("Mortgage & Overpayment Simulator")
-        mc1, mc2 = st.columns(2)
-        with mc1:
-            loan_amount = st.number_input("Loan Amount (PLN)", value=400000, step=10000)
-            interest_rate = st.number_input("Annual Interest Rate (%)", value=7.5, step=0.1)
-            loan_years = st.number_input("Loan Term (Years)", value=30, step=1)
-        with mc2:
-            overpayment = st.number_input("Monthly Overpayment (PLN)", value=0, step=100)
-            
-        # Standard Installment (Annuity)
-        m_rate = interest_rate / 100 / 12
-        n_months = loan_years * 12
-        if m_rate > 0:
-            standard_installment = loan_amount * (m_rate * (1 + m_rate)**n_months) / ((1 + m_rate)**n_months - 1)
-        else:
-            standard_installment = loan_amount / n_months
-            
-        # Simulation with overpayment
-        total_paid = 0
-        total_interest = 0
-        remaining_balance = loan_amount
-        actual_months = 0
-        
-        while remaining_balance > 0 and actual_months < 600:
-            interest_part = remaining_balance * m_rate
-            principal_part = standard_installment - interest_part
-            
-            # Apply installment + overpayment
-            payment = min(remaining_balance + interest_part, standard_installment + overpayment)
-            
-            total_interest += interest_part
-            remaining_balance -= (payment - interest_part)
-            total_paid += payment
-            actual_months += 1
-            
-        st.divider()
-        mm1, mm2, mm3 = st.columns(3)
-        mm1.metric("Standard Installment", f"{standard_installment:,.2f} PLN")
-        mm2.metric("Actual Duration", f"{actual_months/12:.1f} years")
-        mm3.metric("Total Interest", f"{total_interest:,.0f} PLN")
-        
-        savings_interest = (standard_installment * n_months) - total_paid
-        if overpayment > 0:
-            st.info(f"By overpaying **{overpayment} PLN** monthly, you save **{savings_interest:,.0f} PLN** in interest and shorten the loan by **{loan_years - actual_months/12:.1f} years**.")
-        else:
-            st.write(f"Total cost of loan: **{total_paid:,.0f} PLN**")
-
-    with f_col3:
-        st.subheader("Rent vs Buy: Down Payment Strategy")
-        st.write("Should you buy now with a smaller down payment, or rent longer to save up?")
-        
-        r_col1, r_col2, r_col3 = st.columns(3)
-        with r_col1:
-            prop_price = st.number_input("Property Price (PLN)", value=600000, step=10000)
-            curr_down_payment = st.number_input("Current Cash for Down Payment (PLN)", value=60000, step=5000)
-        with r_col2:
-            monthly_rent = st.number_input("Current Monthly Rent (PLN)", value=3000, step=100)
-            monthly_savings_potential = st.number_input("Monthly Savings for Deposit (PLN)", value=2000, step=100)
-        with r_col3:
-            mortgage_rate_rb = st.number_input("Mortgage Interest Rate (%)", value=7.5, step=0.1, key="rb_rate")
-            prop_appreciation = st.number_input("Est. Property Price Growth (%/year)", value=3.0, step=0.5)
-
-        if st.button("Analyze Strategy"):
-            # Simulation over 5 years
-            years = list(range(1, 6))
-            
-            # Calculate initial loan parameters for Buy Now
-            loan_now = prop_price - curr_down_payment
-            r_monthly = mortgage_rate_rb / 100 / 12
-            n_months_total = 30 * 12 # Assume 30 years standard
-            
-            # Standard payment Buy Now
-            pmt_now = loan_now * (r_monthly * (1 + r_monthly)**n_months_total) / ((1 + r_monthly)**n_months_total - 1)
-            
-            results = []
-            
-            for y in years:
-                months_passed = y * 12
-                
-                # --- SCENARIO A: BUY NOW ---
-                # Future Property Value
-                future_val_a = prop_price * (1 + prop_appreciation/100)**y
-                
-                # Remaining Balance
-                # Bal = L * ((1+r)^n - (1+r)^p) / ((1+r)^n - 1)
-                bal_now = loan_now * ((1 + r_monthly)**n_months_total - (1 + r_monthly)**months_passed) / ((1 + r_monthly)**n_months_total - 1)
-                
-                equity_buy_now = future_val_a - bal_now
-                
-                # --- SCENARIO B: WAIT & SAVE ---
-                # You pay rent (loss), you save cash
-                cash_saved = curr_down_payment + (monthly_savings_potential * months_passed)
-                rent_paid = monthly_rent * months_passed
-                
-                # The "Gap" created by inflation
-                price_increase = future_val_a - prop_price
-                
-                # Economic comparison
-                interest_paid_approx = pmt_now * 12 * y - (loan_now - bal_now) 
-                
-                results.append({
-                    "Year": y,
-                    "Buy Now: Net Equity": equity_buy_now,
-                    "Wait: Cash Savings": cash_saved,
-                    "Buy Now: Interest Cost": interest_paid_approx,
-                    "Wait: Rent Cost": rent_paid,
-                    "Property Growth Gain": price_increase
-                })
-                
-            df_res = pd.DataFrame(results)
-            
-            # Chart
-            fig_rb = go.Figure()
-            fig_rb.add_trace(go.Bar(x=df_res['Year'], y=df_res['Buy Now: Net Equity'], name='Net Wealth (Buy Now)', marker_color='#00C853'))
-            fig_rb.add_trace(go.Bar(x=df_res['Year'], y=df_res['Wait: Cash Savings'], name='Net Wealth (Wait)', marker_color='#2962FF'))
-            
-            fig_rb.update_layout(title="Net Wealth Comparison", barmode='group', template="plotly_white")
-            st.plotly_chart(fig_rb, use_container_width=True)
-            
-            # Recommendation based on Year 1
-            y1 = df_res.iloc[0]
-            cost_buy = y1['Buy Now: Interest Cost']
-            cost_wait = y1['Wait: Rent Cost'] + y1['Property Growth Gain']
-            
-            diff = cost_wait - cost_buy
-            
-            if diff > 0:
-                st.success(f"**Recommendation: BUY NOW.**")
-                st.write(f"In 1 year, buying saves you **{diff:,.0f} PLN** compared to renting.")
-                st.markdown(f"""
-                * **Cost of Waiting:** {cost_wait:,.0f} PLN (Rent: {y1['Wait: Rent Cost']:,.0f} + Missed Growth: {y1['Property Growth Gain']:,.0f})
-                * **Cost of Buying:** {cost_buy:,.0f} PLN (Interest Paid)
-                """)
+    # --- 1. CORRELATION ---
+    with a_col1:
+        st.subheader("Market Correlation Matrix (180 days)")
+        st.write("Correlation matrix based on the last 180 days of price data.")
+        with st.spinner("Calculating correlation matrix..."):
+            corr_data = fetch_data("stats/correlation")
+            if corr_data:
+                df_corr = pd.DataFrame(corr_data)
+                fig_corr = go.Figure(data=go.Heatmap(
+                    z=df_corr.values, x=df_corr.columns, y=df_corr.index,
+                    colorscale='RdBu', zmin=-1, zmax=1,
+                    text=df_corr.round(2).values, texttemplate="%{text}", hoverongaps=False
+                ))
+                fig_corr.update_layout(height=600, xaxis_showgrid=False, yaxis_showgrid=False)
+                st.plotly_chart(fig_corr, use_container_width=True)
+                st.info("**1.0 (Dark Blue):** Perfect positive correlation. **-1.0 (Dark Red):** Perfect negative correlation.")
             else:
-                st.info(f"**Recommendation: WAIT.**")
-                st.write(f"In 1 year, renting is cheaper by **{abs(diff):,.0f} PLN**.")
-                st.markdown(f"""
-                * **Cost of Buying:** {cost_buy:,.0f} PLN (High Interest)
-                * **Cost of Waiting:** {cost_wait:,.0f} PLN (Rent + Growth)
-                """)
-                
-            with st.expander("Detailed Comparison Table"):
-                st.dataframe(df_res.style.format("{:,.0f}"))
+                st.warning("Not enough data.")
+
+    # --- 2. SEASONALITY ---
+    with a_col2:
+        st.subheader("Monthly Seasonality Heatmap")
+        st.write("Analyze historical monthly returns to identify seasonal patterns.")
+        
+        s_asset = st.selectbox("Select Asset", ["GOLD", "USD", "EUR", "CHF", "GBP", "JPY", "CAD", "AUD", "NOK"], key="seas_asset")
+        
+        if st.button("Analyze Seasonality"):
+            with st.spinner("Crunching historical numbers..."):
+                seas_data = fetch_data("stats/seasonality", {"asset_code": s_asset})
+                if seas_data:
+                    df_seas = pd.DataFrame(seas_data)
+                    df_seas = df_seas.set_index('year')
+                    
+                    z_vals = df_seas.values
+                    y_vals = df_seas.index
+                    x_vals = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+                    
+                    fig_seas = go.Figure(data=go.Heatmap(
+                        z=z_vals, x=x_vals, y=y_vals,
+                        colorscale='RdYlGn', zmid=0,
+                        text=np.round(z_vals, 1), texttemplate="%{text}%%", hoverongaps=False
+                    ))
+                    fig_seas.update_layout(height=600, yaxis=dict(title='Year', autorange='reversed'), xaxis=dict(title='Month'))
+                    st.plotly_chart(fig_seas, use_container_width=True)
+                    
+                    avg_monthly = df_seas.mean(axis=0)
+                    fig_avg = go.Figure()
+                    fig_avg.add_trace(go.Bar(x=x_vals, y=avg_monthly.values, marker_color=['green' if v > 0 else 'red' for v in avg_monthly.values]))
+                    fig_avg.update_layout(title="Average Monthly Return", height=300)
+                    st.plotly_chart(fig_avg, use_container_width=True)
+                else:
+                    st.error("No seasonality data found.")
+
+    # --- 3. AI FORECAST ---
+    with a_col3:
+        st.subheader("AI Price Forecasting (Prophet)")
+        f_assets = ["GOLD", "USD", "EUR", "CHF", "GBP", "JPY", "CAD", "AUD", "NOK"]
+        f_asset = st.selectbox("Select Asset to Forecast", f_assets, key="ai_asset_sel")
+        if st.button("🔮 Run AI Forecast", type="primary"):
+            with st.spinner(f"Training AI model for {f_asset}..."):
+                try:
+                    f_data = fetch_data("predict", {"asset_code": f_asset, "days": 7})
+                    if f_data:
+                        df_f = pd.DataFrame(f_data)
+                        df_f['ds'] = pd.to_datetime(df_f['ds'])
+                        fig_f = go.Figure()
+                        fig_f.add_trace(go.Scatter(
+                            x=df_f['ds'].tolist() + df_f['ds'].tolist()[::-1],
+                            y=df_f['yhat_upper'].tolist() + df_f['yhat_lower'].tolist()[::-1],
+                            fill='toself', fillcolor='rgba(0,176,246,0.2)', line=dict(color='rgba(255,255,255,0)'), name='Uncertainty'
+                        ))
+                        fig_f.add_trace(go.Scatter(x=df_f['ds'], y=df_f['yhat'], line=dict(color='rgb(0,176,246)'), name='Predicted Price'))
+                        fig_f.update_layout(title=f"7-Day Forecast for {f_asset}", template="plotly_white", height=400)
+                        st.plotly_chart(fig_f, use_container_width=True)
+                    else:
+                        st.error("Prediction failed.")
+                except Exception as e:
+                    st.error(f"Error: {e}")
+
+    # --- 4. INVESTMENT CALCULATOR ---
+    with a_col4:
+        st.subheader("Investment Profit Calculator")
+        calc_amount = st.number_input("Investment Amount (PLN)", value=1000, step=100, key="inv_amount_calc")
+        
+        all_latest_signals = fetch_data("signals", {"limit": 100})
+        if all_latest_signals:
+            target_assets = ["GOLD", "USD", "EUR", "CHF", "GBP", "JPY", "CAD", "AUD", "NOK"]
+            latest_buys = {}
+            for s in all_latest_signals:
+                if s['asset_code'] in target_assets and s['signal'] == "BUY" and s['asset_code'] not in latest_buys:
+                    latest_buys[s['asset_code']] = s
+            
+            if latest_buys:
+                calc_cols = st.columns(4)
+                for idx, (code, signal_data) in enumerate(latest_buys.items()):
+                    endpoint = "gold" if code == "GOLD" else "rates"
+                    params = {"limit": 1}
+                    if code != "GOLD": params["code"] = code
+                    curr_data = fetch_data(endpoint, params)
+                    if curr_data:
+                        current_price = float(curr_data[0].get('rate_mid', curr_data[0].get('price')))
+                        buy_price = float(signal_data['price_at_signal'])
+                        units = calc_amount / buy_price
+                        current_value = units * current_price
+                        profit = current_value - calc_amount
+                        profit_pct = (profit / calc_amount) * 100
+                        with calc_cols[idx % 4]:
+                            with st.container(border=True):
+                                st.write(f"**{code}**")
+                                st.caption(f"Bought at: {buy_price:.4f}")
+                                st.metric("Value", f"{current_value:.2f}", f"{profit_pct:.2f}%")
+                                st.write(f"Profit: **{profit:.2f} PLN**")
+            else:
+                st.info("No active BUY signals found.")
+        else:
+            st.warning("Could not fetch signals.")
+
+
 
