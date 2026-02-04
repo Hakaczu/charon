@@ -1,0 +1,117 @@
+services:
+  db:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: charon
+      POSTGRES_PASSWORD: charon_password
+      POSTGRES_DB: charon_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - charon_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U charon -d charon_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    ports:
+      - "6379:6379"
+    networks:
+      - charon_net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  miner:
+    build:
+      context: ./src
+      dockerfile: miner/Dockerfile
+    restart: always
+    environment:
+      DATABASE_URL: postgresql+asyncpg://charon:charon_password@db:5432/charon_db
+      REDIS_URL: redis://redis:6379/0
+      REDIS_ENABLED: 1
+    volumes:
+      - ./src/miner:/app/src/miner
+      - ./src/shared:/app/src/shared
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - charon_net
+
+  brain:
+    build:
+      context: ./src
+      dockerfile: brain/Dockerfile
+    restart: always
+    environment:
+      DATABASE_URL: postgresql+asyncpg://charon:charon_password@db:5432/charon_db
+      REDIS_URL: redis://redis:6379/0
+      REDIS_ENABLED: 1
+    volumes:
+      - ./src/brain:/app/src/brain
+      - ./src/shared:/app/src/shared
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - charon_net
+
+  api:
+    build:
+      context: ./src
+      dockerfile: api/Dockerfile
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://charon:charon_password@db:5432/charon_db
+      REDIS_URL: redis://redis:6379/0
+      REDIS_ENABLED: 1
+    volumes:
+      - ./src/api:/app/src/api
+      - ./src/shared:/app/src/shared
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - charon_net
+
+  frontend:
+    build:
+      context: ./src
+      dockerfile: frontend/Dockerfile
+    restart: always
+    ports:
+      - "8501:8501"
+    environment:
+      API_URL: http://api:8000
+    volumes:
+      - ./src/frontend:/app/src/frontend
+    depends_on:
+      api:
+        condition: service_started
+    networks:
+      - charon_net
+
+volumes:
+  postgres_data:
+
+networks:
+  charon_net:
