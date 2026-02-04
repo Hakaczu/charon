@@ -112,39 +112,144 @@ st.title("Charon: Market Overview")
 tabs = st.tabs(["Markets", "Signals Log", "Miner Stats"])
 
 with tabs[0]:
-    st.markdown("### 🥇 Gold")
-    gold_data = fetch_data("gold", {"limit": 180})
-    gold_signals = fetch_data("signals", {"asset_code": "GOLD", "limit": 20})
+    # --- TICKER / METRICS ROW ---
+    st.markdown("### 📊 Market Snapshot")
     
-    if gold_data:
-        fig = plot_mini_chart("Gold Price (1g)", gold_data, gold_signals, height=450)
-        st.plotly_chart(fig, use_container_width=True)
+    top_assets = ["GOLD", "USD", "EUR", "CHF", "GBP", "JPY", "CAD", "AUD"]
+    cols = st.columns(len(top_assets))
     
-    st.markdown("---")
-    st.markdown("### 💱 Currencies")
-    
-    currencies = fetch_data("currencies")
-    
-    if currencies:
-        # Create a grid layout
-        cols = st.columns(2) # 2 columns grid
-        
-        for idx, currency in enumerate(currencies):
-            code = currency['code']
-            name = currency['name']
+    for idx, asset_code in enumerate(top_assets):
+        # Fetch minimal data for metric (last 2 days for delta)
+        endpoint = "gold" if asset_code == "GOLD" else "rates"
+        params = {"limit": 2}
+        if asset_code != "GOLD":
+            params["code"] = asset_code
             
-            # Use columns in round-robin
-            with cols[idx % 2]:
-                # Fetch data for this currency
-                # Limit history to 90 days for performance in grid view
-                rates = fetch_data("rates", {"code": code, "limit": 90})
-                signals = fetch_data("signals", {"asset_code": code, "limit": 10})
+        data = fetch_data(endpoint, params)
+        
+        # Fetch latest signal
+        sig_data = fetch_data("signals", {"asset_code": asset_code, "limit": 1})
+        latest_signal = sig_data[0]['signal'] if sig_data else "WAIT"
+        
+        with cols[idx]:
+            if data and len(data) > 0:
+                curr = data[0]
+                price = float(curr.get('rate_mid', curr.get('price')))
                 
-                if rates:
-                    fig = plot_mini_chart(f"{code} - {name}", rates, signals, height=350)
-                    st.plotly_chart(fig, use_container_width=True)
-                else:
-                    st.warning(f"No data for {code}")
+                # Calculate Delta
+                delta_val = 0
+                delta_pct = 0
+                if len(data) > 1:
+                    prev = data[1]
+                    prev_price = float(prev.get('rate_mid', prev.get('price')))
+                    delta_val = price - prev_price
+                    delta_pct = (delta_val / prev_price) * 100
+                
+                # Signal Icon
+                sig_icon = "⚪"
+                if latest_signal == "BUY": sig_icon = "🟢 BUY"
+                elif latest_signal == "SELL": sig_icon = "🔴 SELL"
+                elif latest_signal == "HOLD": sig_icon = "🟡 HOLD"
+                
+                st.metric(
+                    label=f"{asset_code}",
+                    value=f"{price:.4f}",
+                    delta=f"{delta_pct:.2f}%"
+                )
+                st.caption(f"{sig_icon}")
+            else:
+                st.metric(label=asset_code, value="---")
+
+    st.divider()
+
+    # --- CHARTS GRID ---
+    st.markdown("### 📉 Market Charts")
+    
+    # Combine Gold + All Currencies into one list for grid display
+    # We want Gold first, then currencies
+    grid_items = []
+    
+    # 1. Add Gold
+    grid_items.append({
+        'code': 'GOLD',
+        'name': 'Gold (1g)',
+        'type': 'gold'
+    })
+    
+    # 2. Add Currencies sorted by priority
+    currencies = fetch_data("currencies")
+    if currencies:
+        PRIORITY_ORDER = ["USD", "EUR", "CHF", "GBP", "JPY", "CAD", "AUD"]
+        
+        # Create a dict for easy lookup
+        curr_map = {c['code']: c for c in currencies}
+        
+        # Add priority currencies first
+        for p_code in PRIORITY_ORDER:
+            if p_code in curr_map:
+                c = curr_map[p_code]
+                grid_items.append({
+                    'code': c['code'],
+                    'name': c['name'],
+                    'type': 'currency'
+                })
+                # Remove from map to track what's left
+                del curr_map[p_code]
+        
+        # Add remaining currencies sorted alphabetically
+        for r_code in sorted(curr_map.keys()):
+            c = curr_map[r_code]
+            grid_items.append({
+                'code': c['code'],
+                'name': c['name'],
+                'type': 'currency'
+            })
+            
+    # Display in 3 columns
+    cols = st.columns(3)
+    
+    for idx, item in enumerate(grid_items):
+        code = item['code']
+        name = item['name']
+        
+        with cols[idx % 3]:
+            # Fetch data
+            endpoint = "gold" if item['type'] == 'gold' else "rates"
+            params = {"limit": 90} if item['type'] == 'gold' else {"code": code, "limit": 90}
+            
+            data = fetch_data(endpoint, params)
+            signals = fetch_data("signals", {"asset_code": code, "limit": 10})
+            
+            if data:
+                # Plot
+                fig = plot_mini_chart(f"{code}", data, signals, height=350)
+                st.plotly_chart(fig, use_container_width=True)
+                
+                # Stats Section below chart using native Streamlit containers
+                with st.container(border=True):
+                    s_col1, s_col2 = st.columns(2)
+                    
+                    last_price = float(data[0].get('rate_mid', data[0].get('price')))
+                    last_sig = signals[0]['signal'] if signals else "NONE"
+                    
+                    # Calculate simple volatility (std dev of last 10 days)
+                    df_temp = pd.DataFrame(data[:10])
+                    if 'rate_mid' in df_temp.columns: col_p = 'rate_mid' 
+                    else: col_p = 'price'
+                    volatility = df_temp[col_p].astype(float).std()
+
+                    s_col1.caption("Latest Signal")
+                    if last_sig == "BUY": s_col1.success(last_sig)
+                    elif last_sig == "SELL": s_col1.error(last_sig)
+                    else: s_col1.info(last_sig)
+                    
+                    s_col2.caption("Price & Vol")
+                    s_col2.write(f"**{last_price:.4f}**")
+                    s_col2.write(f"V: {volatility:.4f}")
+                
+                st.markdown("<br>", unsafe_allow_html=True) # Spacer
+            else:
+                st.warning(f"No data for {code}")
 
 with tabs[1]:
     st.header("Global Signals Log")
