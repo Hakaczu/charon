@@ -133,6 +133,79 @@ st.title("Charon: Market Overview")
 tabs = st.tabs(["Markets", "Signals Log", "Miner Stats", "Backtesting", "Analysis", "Finances"])
 
 with tabs[0]:
+    # --- EXECUTIVE SUMMARY ---
+    summary_container = st.container(border=True)
+    with summary_container:
+        st.subheader("📢 Market Executive Summary")
+        
+        # 1. Gather Data for Summary
+        summ_assets = ["GOLD", "USD", "EUR", "CHF", "GBP", "JPY", "CAD", "AUD", "NOK"]
+        up_count = 0
+        down_count = 0
+        top_gainer = {"code": None, "pct": -999}
+        top_loser = {"code": None, "pct": 999}
+        rsi_alerts = []
+        featured_signal = None
+        
+        for code in summ_assets:
+            endpoint = "gold" if code == "GOLD" else "rates"
+            params = {"limit": 2}
+            if code != "GOLD": params["code"] = code
+            data = fetch_data(endpoint, params)
+            
+            if data and len(data) > 1:
+                curr = float(data[0].get('rate_mid', data[0].get('price')))
+                prev = float(data[1].get('rate_mid', data[1].get('price')))
+                change_pct = ((curr - prev) / prev) * 100
+                
+                if change_pct > 0: up_count += 1
+                else: down_count += 1
+                
+                if change_pct > top_gainer["pct"]: top_gainer = {"code": code, "pct": change_pct}
+                if change_pct < top_loser["pct"]: top_loser = {"code": code, "pct": change_pct}
+                
+                # Check RSI (need more history for this, let's skip rigorous calculation here to save time 
+                # or fetch latest signal to see if it has RSI snapshot)
+                # Actually we can check recent signals
+        
+        # Fetch latest signals for alerts
+        sigs = fetch_data("signals", {"limit": 20})
+        if sigs:
+            for s in sigs:
+                if s['asset_code'] in summ_assets and not featured_signal:
+                    if s['signal'] == "BUY": featured_signal = s
+                
+                # Check RSI from signal snapshot if available (some old signals might not have it)
+                if 'rsi' in s and s['rsi']:
+                    rsi_val = float(s['rsi'])
+                    if rsi_val > 70: rsi_alerts.append(f"**{s['asset_code']}** is Overbought (RSI {rsi_val:.0f})")
+                    if rsi_val < 30: rsi_alerts.append(f"**{s['asset_code']}** is Oversold (RSI {rsi_val:.0f})")
+
+        # 2. Generate Text
+        sentiment = "Neutral"
+        if up_count > down_count + 2: sentiment = "Bullish (Growth)"
+        elif down_count > up_count + 2: sentiment = "Bearish (Decline)"
+        
+        col_sum1, col_sum2 = st.columns([3, 1])
+        
+        with col_sum1:
+            st.markdown(f"**Market Sentiment:** {sentiment}")
+            st.write(f"Today, **{up_count}** assets are up and **{down_count}** are down.")
+            
+            movers_text = ""
+            if top_gainer['code']: movers_text += f"🚀 Top Gainer: **{top_gainer['code']}** (+{top_gainer['pct']:.2f}%)  "
+            if top_loser['code']: movers_text += f"📉 Top Loser: **{top_loser['code']}** ({top_loser['pct']:.2f}%)"
+            st.markdown(movers_text)
+            
+            if rsi_alerts:
+                st.markdown("⚠️ **Alerts:** " + ", ".join(list(set(rsi_alerts))[:3])) # limit to 3 unique
+        
+        with col_sum2:
+            if featured_signal:
+                st.info(f"💡 **Signal of the Day**\n\n**{featured_signal['asset_code']}**\n\nAction: **{featured_signal['signal']}**\n\nDate: {featured_signal['generated_at'][:10]}")
+            else:
+                st.info("💡 **Signal of the Day**\n\nNo strong signals generated recently.")
+
     # --- TICKER / METRICS ROW ---
     st.markdown("### 📊 Market Snapshot")
     
