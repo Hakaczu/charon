@@ -85,9 +85,15 @@ def plot_mini_chart(title, prices_data, signals_data, height=400):
                 name='SELL'
             ), row=1, col=1)
 
-    # MACD Histogram only for compactness
+    # Histogram colors
     colors = ['#00C853' if val >= 0 else '#D50000' for val in hist]
     fig.add_trace(go.Bar(x=df_prices['date'], y=hist, name='MACD Hist', marker_color=colors), row=2, col=1)
+
+    # Set default zoom to last 365 days
+    if not df_prices.empty:
+        last_date = df_prices['date'].max()
+        start_view_date = last_date - pd.Timedelta(days=365)
+        fig.update_xaxes(range=[start_view_date, last_date])
 
     # Latest Signal Text Annotation
     latest_signal = "NEUTRAL"
@@ -176,15 +182,12 @@ with tabs[0]:
         'type': 'gold'
     })
     
-    # 2. Add Currencies sorted by priority
+    # 2. Add Top 7 Currencies only
     currencies = fetch_data("currencies")
     if currencies:
         PRIORITY_ORDER = ["USD", "EUR", "CHF", "GBP", "JPY", "CAD", "AUD"]
-        
-        # Create a dict for easy lookup
         curr_map = {c['code']: c for c in currencies}
         
-        # Add priority currencies first
         for p_code in PRIORITY_ORDER:
             if p_code in curr_map:
                 c = curr_map[p_code]
@@ -193,19 +196,8 @@ with tabs[0]:
                     'name': c['name'],
                     'type': 'currency'
                 })
-                # Remove from map to track what's left
-                del curr_map[p_code]
-        
-        # Add remaining currencies sorted alphabetically
-        for r_code in sorted(curr_map.keys()):
-            c = curr_map[r_code]
-            grid_items.append({
-                'code': c['code'],
-                'name': c['name'],
-                'type': 'currency'
-            })
             
-    # Display in 3 columns
+    # Display in 3 columns (Grid is now limited to 8 items total: Gold + 7 currencies)
     cols = st.columns(3)
     
     for idx, item in enumerate(grid_items):
@@ -213,9 +205,9 @@ with tabs[0]:
         name = item['name']
         
         with cols[idx % 3]:
-            # Fetch data
+            # Fetch data - set limit to 5000 to capture full available history
             endpoint = "gold" if item['type'] == 'gold' else "rates"
-            params = {"limit": 90} if item['type'] == 'gold' else {"code": code, "limit": 90}
+            params = {"limit": 5000} if item['type'] == 'gold' else {"code": code, "limit": 5000}
             
             data = fetch_data(endpoint, params)
             signals = fetch_data("signals", {"asset_code": code, "limit": 10})
@@ -256,8 +248,16 @@ with tabs[1]:
     all_signals = fetch_data("signals", {"limit": 100})
     if all_signals:
         df_sig = pd.DataFrame(all_signals)
+        df_display = df_sig[['generated_at', 'asset_code', 'signal', 'price_at_signal', 'histogram']].copy()
+        
+        def color_signal_text(val):
+            if val == "BUY": color = '#00FF00' # Bright Green
+            elif val == "SELL": color = '#FF0000' # Bright Red
+            else: color = '#888888' # Gray
+            return f'color: {color}; font-weight: bold'
+
         st.dataframe(
-            df_sig[['generated_at', 'asset_code', 'signal', 'price_at_signal', 'histogram']],
+            df_display.style.applymap(color_signal_text, subset=['signal']),
             use_container_width=True
         )
 
