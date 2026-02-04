@@ -48,6 +48,9 @@ def plot_mini_chart(title, prices_data, signals_data, height=400):
     signal = macd.ewm(span=9, adjust=False).mean()
     hist = macd - signal
 
+    # SMA 50 Calculation (Simple Moving Average)
+    df_prices['sma50'] = df_prices['price'].rolling(window=50).mean()
+
     # Create subplots
     fig = make_subplots(rows=2, cols=1, shared_xaxes=True, 
                         vertical_spacing=0.08, 
@@ -55,6 +58,9 @@ def plot_mini_chart(title, prices_data, signals_data, height=400):
 
     # Price Line
     fig.add_trace(go.Scatter(x=df_prices['date'], y=df_prices['price'], name='Price', line=dict(color='#2962FF', width=2)), row=1, col=1)
+    
+    # SMA 50 Line
+    fig.add_trace(go.Scatter(x=df_prices['date'], y=df_prices['sma50'], name='SMA 50', line=dict(color='#FF6D00', width=1, dash='dash')), row=1, col=1)
 
     # Add Signals
     if signals_data:
@@ -225,19 +231,29 @@ with tabs[0]:
                     last_sig = signals[0]['signal'] if signals else "NONE"
                     
                     # Calculate simple volatility (std dev of last 10 days)
-                    df_temp = pd.DataFrame(data[:10])
+                    df_temp = pd.DataFrame(data[:50]) # Need 50 for SMA
                     if 'rate_mid' in df_temp.columns: col_p = 'rate_mid' 
                     else: col_p = 'price'
-                    volatility = df_temp[col_p].astype(float).std()
+                    
+                    df_temp[col_p] = df_temp[col_p].astype(float)
+                    volatility = df_temp[col_p].iloc[:10].std()
+                    
+                    # Current SMA 50 from data (if enough rows)
+                    sma50_val = df_temp[col_p].mean() if len(df_temp) >= 50 else 0
+                    price_rel_sma = "Above" if last_price > sma50_val else "Below"
+                    sma_color = "green" if price_rel_sma == "Above" else "red"
 
                     s_col1.caption("Latest Signal")
                     if last_sig == "BUY": s_col1.success(last_sig)
                     elif last_sig == "SELL": s_col1.error(last_sig)
                     else: s_col1.info(last_sig)
                     
-                    s_col2.caption("Price & Vol")
-                    s_col2.write(f"**{last_price:.4f}**")
-                    s_col2.write(f"V: {volatility:.4f}")
+                    s_col2.caption("Price, Vol & SMA")
+                    s_col2.write(f"**{last_price:.4f}** (V: {volatility:.3f})")
+                    if sma50_val > 0:
+                        s_col2.markdown(f"SMA50: {sma50_val:.4f} (<span style='color:{sma_color}'>{price_rel_sma}</span>)", unsafe_allow_html=True)
+                    else:
+                        s_col2.write("SMA50: N/A")
                 
                 st.markdown("<br>", unsafe_allow_html=True) # Spacer
             else:
