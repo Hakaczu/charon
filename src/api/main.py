@@ -17,6 +17,15 @@ sys.path.append('/app')
 
 from src.shared.database import get_db, init_db
 from src.shared.models import Rate, GoldPrice, Signal, JobLog, Currency
+from src.shared.backtester import Backtester
+import pandas as pd
+import os
+import sys
+
+sys.path.append('/app')
+
+from src.shared.database import get_db, init_db
+from src.shared.models import Rate, GoldPrice, Signal, JobLog, Currency
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
 
@@ -130,3 +139,34 @@ async def get_upcoming_jobs():
         "import_gold": next_gold,
         "server_time": now
     }
+
+@app.post("/backtest")
+async def run_backtest(
+    asset_code: str = Query(..., description="Currency code (e.g. USD) or 'GOLD'"),
+    initial_capital: float = 10000.0,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Runs a backtest simulation for the specified asset using the current strategy.
+    """
+    # 1. Fetch History
+    if asset_code.upper() == "GOLD":
+        stmt = select(GoldPrice).order_by(GoldPrice.effective_date.asc())
+        result = await db.execute(stmt)
+        data = result.scalars().all()
+        # Normalize
+        df = pd.DataFrame([{'date': d.effective_date, 'price': float(d.price)} for d in data])
+    else:
+        stmt = select(Rate).where(Rate.currency_code == asset_code.upper()).order_by(Rate.effective_date.asc())
+        result = await db.execute(stmt)
+        data = result.scalars().all()
+        df = pd.DataFrame([{'date': d.effective_date, 'price': float(d.rate_mid)} for d in data])
+        
+    if df.empty:
+        raise HTTPException(status_code=404, detail=f"No data found for {asset_code}")
+        
+    # 2. Run Backtest
+    backtester = Backtester(initial_capital=initial_capital)
+    results = backtester.run(df)
+    
+    return results

@@ -118,7 +118,7 @@ def plot_mini_chart(title, prices_data, signals_data, height=500):
 # Main UI
 st.title("Charon: Market Overview")
 
-tabs = st.tabs(["Markets", "Signals Log", "Miner Stats"])
+tabs = st.tabs(["Markets", "Signals Log", "Miner Stats", "Backtesting"])
 
 with tabs[0]:
     # --- TICKER / METRICS ROW ---
@@ -324,3 +324,65 @@ with tabs[2]:
     
     if st.button("Refresh Miner Stats"):
         st.rerun()
+
+with tabs[3]:
+    st.header("Strategy Backtesting")
+    
+    col_b1, col_b2, col_b3 = st.columns([1, 1, 1])
+    with col_b1:
+        # Asset Selection
+        b_currencies = fetch_data("currencies")
+        b_options = ["GOLD"] + [c['code'] for c in b_currencies] if b_currencies else ["GOLD", "USD", "EUR"]
+        b_asset = st.selectbox("Select Asset to Test", b_options)
+        
+    with col_b2:
+        b_capital = st.number_input("Initial Capital (PLN)", value=10000, step=1000)
+        
+    with col_b3:
+        st.write("")
+        st.write("")
+        run_btn = st.button("🚀 Run Simulation", type="primary")
+
+    if run_btn:
+        with st.spinner("Running simulation on historical data..."):
+            try:
+                # POST request to backtest
+                with httpx.Client() as client:
+                    resp = client.post(
+                        f"{API_URL}/backtest", 
+                        params={"asset_code": b_asset, "initial_capital": b_capital}
+                    )
+                    if resp.status_code == 200:
+                        res = resp.json()
+                        
+                        # Metrics
+                        m1, m2, m3 = st.columns(3)
+                        m1.metric("Final Value", f"{res['final_value']:.2f} PLN", f"{res['total_return_pct']:.2f}%")
+                        m2.metric("Total Trades", res['total_trades'])
+                        profit = res['final_value'] - res['initial_capital']
+                        m3.metric("Profit/Loss", f"{profit:.2f} PLN")
+                        
+                        # Equity Curve
+                        equity_data = res.get('equity_curve', [])
+                        if equity_data:
+                            df_eq = pd.DataFrame(equity_data)
+                            df_eq['date'] = pd.to_datetime(df_eq['date'])
+                            
+                            fig_eq = go.Figure()
+                            fig_eq.add_trace(go.Scatter(x=df_eq['date'], y=df_eq['equity'], mode='lines', name='Equity', fill='tozeroy'))
+                            fig_eq.update_layout(title="Portfolio Value Over Time", template="plotly_white", height=400)
+                            st.plotly_chart(fig_eq, use_container_width=True)
+                            
+                        # Trades Table
+                        trades_data = res.get('trades', [])
+                        if trades_data:
+                            st.subheader("Trade History")
+                            df_trades = pd.DataFrame(trades_data)
+                            st.dataframe(df_trades, use_container_width=True)
+                        else:
+                            st.info("No trades were executed in this period.")
+                            
+                    else:
+                        st.error(f"Simulation failed: {resp.text}")
+            except Exception as e:
+                st.error(f"Error: {e}")

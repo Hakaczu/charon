@@ -12,7 +12,7 @@ sys.path.append('/app')
 
 from src.shared.database import init_db, AsyncSessionLocal
 from src.shared.models import Rate, GoldPrice, Signal, SignalType, AssetType
-from src.brain.analysis import TechnicalAnalyzer
+from src.shared.analysis import TechnicalAnalyzer
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("brain")
@@ -44,6 +44,7 @@ class BrainService:
             
             macd_df = self.analyzer.calculate_macd(df['price'])
             rsi_series = self.analyzer.calculate_rsi(df['price'])
+            sma_series = self.analyzer.calculate_sma(df['price'], window=50)
             
             # Check the last row for the latest signal
             current_idx = -1
@@ -52,8 +53,10 @@ class BrainService:
             curr_hist = macd_df.iloc[current_idx]['hist']
             prev_hist = macd_df.iloc[prev_idx]['hist']
             curr_rsi = float(rsi_series.iloc[current_idx])
+            curr_price = float(df.iloc[current_idx]['price'])
+            curr_sma = float(sma_series.iloc[current_idx])
             
-            signal_decision = self.analyzer.determine_signal(curr_hist, prev_hist, curr_rsi)
+            signal_decision = self.analyzer.determine_signal(curr_hist, prev_hist, curr_rsi, curr_price, curr_sma)
             
             # Save signal
             new_signal = Signal(
@@ -89,12 +92,15 @@ class BrainService:
             
             macd_df = self.analyzer.calculate_macd(df['price'])
             rsi_series = self.analyzer.calculate_rsi(df['price'])
+            sma_series = self.analyzer.calculate_sma(df['price'], window=50)
             
             curr_hist = macd_df.iloc[-1]['hist']
             prev_hist = macd_df.iloc[-2]['hist']
             curr_rsi = float(rsi_series.iloc[-1])
+            curr_price = float(df.iloc[-1]['price'])
+            curr_sma = float(sma_series.iloc[-1])
             
-            signal_decision = self.analyzer.determine_signal(curr_hist, prev_hist, curr_rsi)
+            signal_decision = self.analyzer.determine_signal(curr_hist, prev_hist, curr_rsi, curr_price, curr_sma)
             
             new_signal = Signal(
                 asset_type=AssetType.GOLD,
