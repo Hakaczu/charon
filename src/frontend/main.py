@@ -20,9 +20,9 @@ def fetch_data(endpoint, params=None):
         st.error(f"Error fetching data from {endpoint}: {e}")
         return []
 
-def plot_mini_chart(title, prices_data, signals_data, height=400):
+def plot_mini_chart(title, prices_data, signals_data, height=500):
     """
-    Creates a compact chart for the grid view.
+    Creates a compact chart with Price, MACD, and RSI.
     """
     if not prices_data:
         return None
@@ -35,79 +35,76 @@ def plot_mini_chart(title, prices_data, signals_data, height=400):
         df_prices = df_prices.rename(columns={'effective_date': 'date'})
     
     df_prices['date'] = pd.to_datetime(df_prices['date'])
-    # Ensure date is tz-naive for merging
     if df_prices['date'].dt.tz is not None:
         df_prices['date'] = df_prices['date'].dt.tz_localize(None)
-        
     df_prices = df_prices.sort_values('date')
 
-    # MACD Calculation
+    # Indicators Calculation
+    # 1. MACD
     exp1 = df_prices['price'].ewm(span=12, adjust=False).mean()
     exp2 = df_prices['price'].ewm(span=26, adjust=False).mean()
     macd = exp1 - exp2
-    signal = macd.ewm(span=9, adjust=False).mean()
-    hist = macd - signal
+    signal_line = macd.ewm(span=9, adjust=False).mean()
+    hist = macd - signal_line
 
-    # SMA 50 Calculation (Simple Moving Average)
+    # 2. SMA 50
     df_prices['sma50'] = df_prices['price'].rolling(window=50).mean()
 
-    # Create subplots
-    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, 
-                        vertical_spacing=0.08, 
-                        row_heights=[0.7, 0.3])
+    # 3. RSI
+    delta = df_prices['price'].diff()
+    gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+    rs = gain / loss
+    rsi_vals = 100 - (100 / (1 + rs))
 
-    # Price Line
-    fig.add_trace(go.Scatter(x=df_prices['date'], y=df_prices['price'], name='Price', line=dict(color='#2962FF', width=2)), row=1, col=1)
+    # Signal Info for Title
+    latest_signal = "NEUTRAL"
+    if signals_data:
+         latest_signal = signals_data[0]['signal']
     
-    # SMA 50 Line
+    color_map = {"BUY": "green", "SELL": "red", "HOLD": "gray"}
+    title_text = f"{title} <span style='color:{color_map.get(latest_signal, 'black')}'>({latest_signal})</span>"
+
+    # Create subplots
+    fig = make_subplots(rows=3, cols=1, shared_xaxes=True, 
+                        vertical_spacing=0.05, 
+                        row_heights=[0.5, 0.25, 0.25])
+
+    # Row 1: Price & SMA & Signals
+    fig.add_trace(go.Scatter(x=df_prices['date'], y=df_prices['price'], name='Price', line=dict(color='#2962FF', width=2)), row=1, col=1)
     fig.add_trace(go.Scatter(x=df_prices['date'], y=df_prices['sma50'], name='SMA 50', line=dict(color='#FF6D00', width=1, dash='dash')), row=1, col=1)
 
-    # Add Signals
     if signals_data:
         df_signals = pd.DataFrame(signals_data)
         df_signals['generated_at'] = pd.to_datetime(df_signals['generated_at'])
-        
-        # Make timezone naive and normalize to midnight
         if df_signals['generated_at'].dt.tz is not None:
             df_signals['generated_at'] = df_signals['generated_at'].dt.tz_localize(None)
-            
         df_signals['date'] = df_signals['generated_at'].dt.normalize()
         
         buys = df_signals[df_signals['signal'] == 'BUY']
         if not buys.empty:
             buys_on_chart = pd.merge(buys, df_prices, on='date', how='inner')
-            fig.add_trace(go.Scatter(
-                x=buys_on_chart['date'], y=buys_on_chart['price'],
-                mode='markers', marker=dict(symbol='triangle-up', color='#00C853', size=10),
-                name='BUY'
-            ), row=1, col=1)
-
+            fig.add_trace(go.Scatter(x=buys_on_chart['date'], y=buys_on_chart['price'], mode='markers', marker=dict(symbol='triangle-up', color='#00C853', size=10), name='BUY'), row=1, col=1)
+        
         sells = df_signals[df_signals['signal'] == 'SELL']
         if not sells.empty:
             sells_on_chart = pd.merge(sells, df_prices, on='date', how='inner')
-            fig.add_trace(go.Scatter(
-                x=sells_on_chart['date'], y=sells_on_chart['price'],
-                mode='markers', marker=dict(symbol='triangle-down', color='#D50000', size=10),
-                name='SELL'
-            ), row=1, col=1)
+            fig.add_trace(go.Scatter(x=sells_on_chart['date'], y=sells_on_chart['price'], mode='markers', marker=dict(symbol='triangle-down', color='#D50000', size=10), name='SELL'), row=1, col=1)
 
-    # Histogram colors
-    colors = ['#00C853' if val >= 0 else '#D50000' for val in hist]
-    fig.add_trace(go.Bar(x=df_prices['date'], y=hist, name='MACD Hist', marker_color=colors), row=2, col=1)
+    # Row 2: MACD Histogram
+    macd_colors = ['#00C853' if val >= 0 else '#D50000' for val in hist]
+    fig.add_trace(go.Bar(x=df_prices['date'], y=hist, name='MACD Hist', marker_color=macd_colors), row=2, col=1)
 
-    # Set default zoom to last 365 days
+    # Row 3: RSI
+    fig.add_trace(go.Scatter(x=df_prices['date'], y=rsi_vals, name='RSI', line=dict(color='#7E57C2', width=1.5)), row=3, col=1)
+    fig.add_hline(y=70, line_dash="dash", line_color="red", row=3, col=1)
+    fig.add_hline(y=30, line_dash="dash", line_color="green", row=3, col=1)
+
+    # Styling and Zoom
     if not df_prices.empty:
         last_date = df_prices['date'].max()
         start_view_date = last_date - pd.Timedelta(days=365)
         fig.update_xaxes(range=[start_view_date, last_date])
-
-    # Latest Signal Text Annotation
-    latest_signal = "NEUTRAL"
-    if signals_data:
-         latest_signal = signals_data[0]['signal'] # Assuming sorted DESC
-    
-    color_map = {"BUY": "green", "SELL": "red", "HOLD": "gray"}
-    title_text = f"{title} <span style='color:{color_map.get(latest_signal, 'black')}'>({latest_signal})</span>"
 
     fig.update_layout(
         title=dict(text=title_text, x=0, font=dict(size=14)),
@@ -231,29 +228,52 @@ with tabs[0]:
                     last_sig = signals[0]['signal'] if signals else "NONE"
                     
                     # Calculate simple volatility (std dev of last 10 days)
-                    df_temp = pd.DataFrame(data[:50]) # Need 50 for SMA
+                    df_temp = pd.DataFrame(data) # Use all data for correct rolling calc
                     if 'rate_mid' in df_temp.columns: col_p = 'rate_mid' 
                     else: col_p = 'price'
                     
                     df_temp[col_p] = df_temp[col_p].astype(float)
+                    
+                    # Volatility
                     volatility = df_temp[col_p].iloc[:10].std()
                     
-                    # Current SMA 50 from data (if enough rows)
-                    sma50_val = df_temp[col_p].mean() if len(df_temp) >= 50 else 0
+                    # SMA 50
+                    sma50_val = df_temp[col_p].iloc[:50].mean() if len(df_temp) >= 50 else 0
                     price_rel_sma = "Above" if last_price > sma50_val else "Below"
                     sma_color = "green" if price_rel_sma == "Above" else "red"
+                    
+                    # RSI (Calculate locally for stats display)
+                    delta = df_temp[col_p].diff()
+                    # Reversing data for calculation might be tricky if data comes DESC/ASC. 
+                    # Assuming data is DESC from API usually, but let's sort ASC for calc then back.
+                    # Actually, plot_mini_chart sorts it. Let's do it safely here.
+                    df_calc = df_temp.sort_values('effective_date' if 'effective_date' in df_temp.columns else 'fetched_at')
+                    delta = df_calc[col_p].diff()
+                    gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+                    loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+                    rs = gain / loss
+                    rsi_series = 100 - (100 / (1 + rs))
+                    
+                    last_rsi = float(rsi_series.iloc[-1]) if not rsi_series.empty and not pd.isna(rsi_series.iloc[-1]) else 50
+                    
+                    rsi_state = "Neutral"
+                    rsi_color = "gray"
+                    if last_rsi >= 70: 
+                        rsi_state = "Overbought"
+                        rsi_color = "red"
+                    elif last_rsi <= 30:
+                        rsi_state = "Oversold"
+                        rsi_color = "green"
 
                     s_col1.caption("Latest Signal")
                     if last_sig == "BUY": s_col1.success(last_sig)
                     elif last_sig == "SELL": s_col1.error(last_sig)
                     else: s_col1.info(last_sig)
                     
-                    s_col2.caption("Price, Vol & SMA")
-                    s_col2.write(f"**{last_price:.4f}** (V: {volatility:.3f})")
-                    if sma50_val > 0:
-                        s_col2.markdown(f"SMA50: {sma50_val:.4f} (<span style='color:{sma_color}'>{price_rel_sma}</span>)", unsafe_allow_html=True)
-                    else:
-                        s_col2.write("SMA50: N/A")
+                    s_col2.caption("Indicators")
+                    s_col2.write(f"**P: {last_price:.4f}** | V: {volatility:.3f}")
+                    s_col2.markdown(f"SMA50: <span style='color:{sma_color}'>{price_rel_sma}</span>", unsafe_allow_html=True)
+                    s_col2.markdown(f"RSI: {last_rsi:.1f} (<span style='color:{rsi_color}'>{rsi_state}</span>)", unsafe_allow_html=True)
                 
                 st.markdown("<br>", unsafe_allow_html=True) # Spacer
             else:

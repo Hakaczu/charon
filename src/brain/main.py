@@ -43,6 +43,7 @@ class BrainService:
             } for r in rates])
             
             macd_df = self.analyzer.calculate_macd(df['price'])
+            rsi_series = self.analyzer.calculate_rsi(df['price'])
             
             # Check the last row for the latest signal
             current_idx = -1
@@ -50,8 +51,9 @@ class BrainService:
             
             curr_hist = macd_df.iloc[current_idx]['hist']
             prev_hist = macd_df.iloc[prev_idx]['hist']
+            curr_rsi = float(rsi_series.iloc[current_idx])
             
-            signal_decision = self.analyzer.determine_signal(curr_hist, prev_hist)
+            signal_decision = self.analyzer.determine_signal(curr_hist, prev_hist, curr_rsi)
             
             # Save signal
             new_signal = Signal(
@@ -61,8 +63,9 @@ class BrainService:
                 macd=macd_df.iloc[current_idx]['macd'],
                 signal_line=macd_df.iloc[current_idx]['signal'],
                 histogram=curr_hist,
+                rsi=curr_rsi,
                 price_at_signal=df.iloc[current_idx]['price'],
-                horizon_days=1 # Daily timeframe
+                horizon_days=1 
             )
             
             session.add(new_signal)
@@ -85,11 +88,13 @@ class BrainService:
             } for p in prices])
             
             macd_df = self.analyzer.calculate_macd(df['price'])
+            rsi_series = self.analyzer.calculate_rsi(df['price'])
             
             curr_hist = macd_df.iloc[-1]['hist']
             prev_hist = macd_df.iloc[-2]['hist']
+            curr_rsi = float(rsi_series.iloc[-1])
             
-            signal_decision = self.analyzer.determine_signal(curr_hist, prev_hist)
+            signal_decision = self.analyzer.determine_signal(curr_hist, prev_hist, curr_rsi)
             
             new_signal = Signal(
                 asset_type=AssetType.GOLD,
@@ -98,6 +103,7 @@ class BrainService:
                 macd=macd_df.iloc[-1]['macd'],
                 signal_line=macd_df.iloc[-1]['signal'],
                 histogram=curr_hist,
+                rsi=curr_rsi,
                 price_at_signal=df.iloc[-1]['price']
             )
             
