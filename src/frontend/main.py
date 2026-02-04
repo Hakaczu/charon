@@ -57,6 +57,12 @@ def plot_mini_chart(title, prices_data, signals_data, height=500):
     rs = gain / loss
     rsi_vals = 100 - (100 / (1 + rs))
 
+    # 4. Bollinger Bands
+    sma20 = df_prices['price'].rolling(window=20).mean()
+    std20 = df_prices['price'].rolling(window=20).std()
+    bb_upper = sma20 + (2 * std20)
+    bb_lower = sma20 - (2 * std20)
+
     # Signal Info for Title
     latest_signal = "NEUTRAL"
     if signals_data:
@@ -70,7 +76,12 @@ def plot_mini_chart(title, prices_data, signals_data, height=500):
                         vertical_spacing=0.05, 
                         row_heights=[0.5, 0.25, 0.25])
 
-    # Row 1: Price & SMA & Signals
+    # Row 1: Price & SMA & Signals & BB
+    # BB Lower (invisible line for fill anchor)
+    fig.add_trace(go.Scatter(x=df_prices['date'], y=bb_lower, line=dict(width=0), showlegend=False, hoverinfo='skip'), row=1, col=1)
+    # BB Upper (fill down to lower)
+    fig.add_trace(go.Scatter(x=df_prices['date'], y=bb_upper, fill='tonexty', fillcolor='rgba(128, 128, 128, 0.1)', line=dict(width=0), showlegend=False, hoverinfo='skip'), row=1, col=1)
+    
     fig.add_trace(go.Scatter(x=df_prices['date'], y=df_prices['price'], name='Price', line=dict(color='#2962FF', width=2)), row=1, col=1)
     fig.add_trace(go.Scatter(x=df_prices['date'], y=df_prices['sma50'], name='SMA 50', line=dict(color='#FF6D00', width=1, dash='dash')), row=1, col=1)
 
@@ -118,7 +129,7 @@ def plot_mini_chart(title, prices_data, signals_data, height=500):
 # Main UI
 st.title("Charon: Market Overview")
 
-tabs = st.tabs(["Markets", "Signals Log", "Miner Stats", "Backtesting"])
+tabs = st.tabs(["Markets", "Signals Log", "Miner Stats", "Backtesting", "Analysis"])
 
 with tabs[0]:
     # --- TICKER / METRICS ROW ---
@@ -386,3 +397,43 @@ with tabs[3]:
                         st.error(f"Simulation failed: {resp.text}")
             except Exception as e:
                 st.error(f"Error: {e}")
+
+with tabs[4]:
+    st.header("Market Correlation Analysis")
+    st.write("Correlation matrix based on the last 180 days of price data.")
+    
+    with st.spinner("Calculating correlation matrix..."):
+        corr_data = fetch_data("stats/correlation")
+        
+        if corr_data:
+            df_corr = pd.DataFrame(corr_data)
+            
+            # Create Plotly Heatmap
+            fig_corr = go.Figure(data=go.Heatmap(
+                z=df_corr.values,
+                x=df_corr.columns,
+                y=df_corr.index,
+                colorscale='RdBu', # Red-Blue scale (Red = Negative, Blue = Positive)
+                zmin=-1, zmax=1,
+                text=df_corr.round(2).values,
+                texttemplate="%{text}",
+                hoverongaps=False
+            ))
+            
+            fig_corr.update_layout(
+                title="Asset Correlation Heatmap (Pearson)",
+                height=600,
+                xaxis_showgrid=False,
+                yaxis_showgrid=False
+            )
+            
+            st.plotly_chart(fig_corr, use_container_width=True)
+            
+            st.info("""
+            **How to read this?**
+            * **1.0 (Dark Blue):** Perfect positive correlation (move together).
+            * **-1.0 (Dark Red):** Perfect negative correlation (move in opposite directions).
+            * **0.0 (White):** No correlation.
+            """)
+        else:
+            st.warning("Could not calculate correlation. Not enough overlapping data.")

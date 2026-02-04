@@ -30,6 +30,7 @@ class Backtester:
         macd_df = self.analyzer.calculate_macd(prices_series)
         rsi_series = self.analyzer.calculate_rsi(prices_series)
         sma_series = self.analyzer.calculate_sma(prices_series, window=50)
+        bb_df = self.analyzer.calculate_bollinger_bands(prices_series)
         
         # Merge all into one df for easier iteration
         df = df_prices.copy()
@@ -38,6 +39,8 @@ class Backtester:
         df['hist'] = macd_df['hist']
         df['rsi'] = rsi_series
         df['sma'] = sma_series
+        df['bb_lower'] = bb_df['bb_lower']
+        df['bb_upper'] = bb_df['bb_upper']
         
         # Iterate starting from day 50 (to have SMA/MACD valid)
         for i in range(50, len(df)):
@@ -53,6 +56,8 @@ class Backtester:
             prev_hist = prev_row['hist']
             curr_rsi = row['rsi']
             curr_sma = row['sma']
+            curr_bb_lower = row['bb_lower']
+            curr_bb_upper = row['bb_upper']
             
             # Re-use the EXACT logic from TechnicalAnalyzer
             # Note: The analyzer function expects pure floats
@@ -61,7 +66,9 @@ class Backtester:
                 prev_hist=float(prev_hist),
                 rsi=float(curr_rsi),
                 current_price=float(price),
-                sma_val=float(curr_sma)
+                sma_val=float(curr_sma),
+                bb_lower=float(curr_bb_lower),
+                bb_upper=float(curr_bb_upper)
             )
             
             # Execute Trade

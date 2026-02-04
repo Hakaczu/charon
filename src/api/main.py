@@ -170,3 +170,40 @@ async def run_backtest(
     results = backtester.run(df)
     
     return results
+
+@app.get("/stats/correlation")
+@cache(expire=3600)
+async def get_correlation_matrix(db: AsyncSession = Depends(get_db)):
+    """
+    Calculates correlation matrix between Gold and Top 7 currencies for the last 180 days.
+    """
+    assets = ["GOLD", "USD", "EUR", "CHF", "GBP", "JPY", "CAD", "AUD"]
+    merged_df = pd.DataFrame()
+
+    for asset in assets:
+        if asset == "GOLD":
+            stmt = select(GoldPrice).order_by(GoldPrice.effective_date.desc()).limit(180)
+            result = await db.execute(stmt)
+            data = result.scalars().all()
+            df = pd.DataFrame([{'date': d.effective_date, asset: float(d.price)} for d in data])
+        else:
+            stmt = select(Rate).where(Rate.currency_code == asset).order_by(Rate.effective_date.desc()).limit(180)
+            result = await db.execute(stmt)
+            data = result.scalars().all()
+            df = pd.DataFrame([{'date': d.effective_date, asset: float(d.rate_mid)} for d in data])
+        
+        if not df.empty:
+            df['date'] = pd.to_datetime(df['date'])
+            if merged_df.empty:
+                merged_df = df
+            else:
+                merged_df = pd.merge(merged_df, df, on='date', how='inner')
+
+    if merged_df.empty:
+        return {}
+
+    # Drop date for correlation calc
+    corr_matrix = merged_df.drop(columns=['date']).corr()
+    
+    # Format for JSON response (dict of dicts)
+    return corr_matrix.to_dict()
