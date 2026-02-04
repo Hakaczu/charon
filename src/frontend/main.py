@@ -539,7 +539,7 @@ with tabs[4]:
 with tabs[5]:
     st.header("💰 Personal Finance Tools")
     
-    f_col1, f_col2 = st.tabs(["🔥 FIRE Calculator", "🏠 Mortgage Calculator"])
+    f_col1, f_col2, f_col3 = st.tabs(["🔥 FIRE Calculator", "🏠 Mortgage Calculator", "⚖️ Rent vs Buy Strategy"])
     
     with f_col1:
         st.subheader("Financial Independence, Retire Early")
@@ -641,4 +641,101 @@ with tabs[5]:
             st.info(f"By overpaying **{overpayment} PLN** monthly, you save **{savings_interest:,.0f} PLN** in interest and shorten the loan by **{loan_years - actual_months/12:.1f} years**.")
         else:
             st.write(f"Total cost of loan: **{total_paid:,.0f} PLN**")
+
+    with f_col3:
+        st.subheader("Rent vs Buy: Down Payment Strategy")
+        st.write("Should you buy now with a smaller down payment, or rent longer to save up?")
+        
+        r_col1, r_col2, r_col3 = st.columns(3)
+        with r_col1:
+            prop_price = st.number_input("Property Price (PLN)", value=600000, step=10000)
+            curr_down_payment = st.number_input("Current Cash for Down Payment (PLN)", value=60000, step=5000)
+        with r_col2:
+            monthly_rent = st.number_input("Current Monthly Rent (PLN)", value=3000, step=100)
+            monthly_savings_potential = st.number_input("Monthly Savings for Deposit (PLN)", value=2000, step=100)
+        with r_col3:
+            mortgage_rate_rb = st.number_input("Mortgage Interest Rate (%)", value=7.5, step=0.1, key="rb_rate")
+            prop_appreciation = st.number_input("Est. Property Price Growth (%/year)", value=3.0, step=0.5)
+
+        if st.button("Analyze Strategy"):
+            # Simulation over 5 years
+            years = list(range(1, 6))
+            
+            # Calculate initial loan parameters for Buy Now
+            loan_now = prop_price - curr_down_payment
+            r_monthly = mortgage_rate_rb / 100 / 12
+            n_months_total = 30 * 12 # Assume 30 years standard
+            
+            # Standard payment Buy Now
+            pmt_now = loan_now * (r_monthly * (1 + r_monthly)**n_months_total) / ((1 + r_monthly)**n_months_total - 1)
+            
+            results = []
+            
+            for y in years:
+                months_passed = y * 12
+                
+                # --- SCENARIO A: BUY NOW ---
+                # Future Property Value
+                future_val_a = prop_price * (1 + prop_appreciation/100)**y
+                
+                # Remaining Balance
+                # Bal = L * ((1+r)^n - (1+r)^p) / ((1+r)^n - 1)
+                bal_now = loan_now * ((1 + r_monthly)**n_months_total - (1 + r_monthly)**months_passed) / ((1 + r_monthly)**n_months_total - 1)
+                
+                equity_buy_now = future_val_a - bal_now
+                
+                # --- SCENARIO B: WAIT & SAVE ---
+                # You pay rent (loss), you save cash
+                cash_saved = curr_down_payment + (monthly_savings_potential * months_passed)
+                rent_paid = monthly_rent * months_passed
+                
+                # The "Gap" created by inflation
+                price_increase = future_val_a - prop_price
+                
+                # Economic comparison
+                interest_paid_approx = pmt_now * 12 * y - (loan_now - bal_now) 
+                
+                results.append({
+                    "Year": y,
+                    "Buy Now: Net Equity": equity_buy_now,
+                    "Wait: Cash Savings": cash_saved,
+                    "Buy Now: Interest Cost": interest_paid_approx,
+                    "Wait: Rent Cost": rent_paid,
+                    "Property Growth Gain": price_increase
+                })
+                
+            df_res = pd.DataFrame(results)
+            
+            # Chart
+            fig_rb = go.Figure()
+            fig_rb.add_trace(go.Bar(x=df_res['Year'], y=df_res['Buy Now: Net Equity'], name='Net Wealth (Buy Now)', marker_color='#00C853'))
+            fig_rb.add_trace(go.Bar(x=df_res['Year'], y=df_res['Wait: Cash Savings'], name='Net Wealth (Wait)', marker_color='#2962FF'))
+            
+            fig_rb.update_layout(title="Net Wealth Comparison", barmode='group', template="plotly_white")
+            st.plotly_chart(fig_rb, use_container_width=True)
+            
+            # Recommendation based on Year 1
+            y1 = df_res.iloc[0]
+            cost_buy = y1['Buy Now: Interest Cost']
+            cost_wait = y1['Wait: Rent Cost'] + y1['Property Growth Gain']
+            
+            diff = cost_wait - cost_buy
+            
+            if diff > 0:
+                st.success(f"**Recommendation: BUY NOW.**")
+                st.write(f"In 1 year, buying saves you **{diff:,.0f} PLN** compared to renting.")
+                st.markdown(f"""
+                * **Cost of Waiting:** {cost_wait:,.0f} PLN (Rent: {y1['Wait: Rent Cost']:,.0f} + Missed Growth: {y1['Property Growth Gain']:,.0f})
+                * **Cost of Buying:** {cost_buy:,.0f} PLN (Interest Paid)
+                """)
+            else:
+                st.info(f"**Recommendation: WAIT.**")
+                st.write(f"In 1 year, renting is cheaper by **{abs(diff):,.0f} PLN**.")
+                st.markdown(f"""
+                * **Cost of Buying:** {cost_buy:,.0f} PLN (High Interest)
+                * **Cost of Waiting:** {cost_wait:,.0f} PLN (Rent + Growth)
+                """)
+                
+            with st.expander("Detailed Comparison Table"):
+                st.dataframe(df_res.style.format("{:,.0f}"))
 

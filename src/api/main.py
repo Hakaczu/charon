@@ -32,7 +32,7 @@ REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    redis_client = redis.from_url(REDIS_URL, encoding="utf8", decode_responses=True)
+    redis_client = redis.from_url(REDIS_URL, encoding="utf8") # Removed decode_responses=True
     FastAPICache.init(RedisBackend(redis_client), prefix="fastapi-cache")
     yield
     # Shutdown
@@ -250,3 +250,48 @@ async def predict_future(
     predictions = forecast.iloc[-days:][['ds', 'yhat', 'yhat_lower', 'yhat_upper']]
     
     return predictions.to_dict(orient='records')
+
+@app.get("/stats/seasonality")
+@cache(expire=3600)
+async def get_seasonality(
+    asset_code: str = Query(..., description="Currency code or 'GOLD'"),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Calculates monthly returns heat map data.
+    """
+    # 1. Fetch Full History
+    if asset_code.upper() == "GOLD":
+        stmt = select(GoldPrice).order_by(GoldPrice.effective_date.asc())
+        result = await db.execute(stmt)
+        data = result.scalars().all()
+        df = pd.DataFrame([{'date': d.effective_date, 'price': float(d.price)} for d in data])
+    else:
+        stmt = select(Rate).where(Rate.currency_code == asset_code.upper()).order_by(Rate.effective_date.asc())
+        result = await db.execute(stmt)
+        data = result.scalars().all()
+        df = pd.DataFrame([{'date': d.effective_date, 'price': float(d.rate_mid)} for d in data])
+        
+    if df.empty:
+        raise HTTPException(status_code=404, detail="No data")
+
+    df['date'] = pd.to_datetime(df['date'])
+    df['year'] = df['date'].dt.year
+    df['month'] = df['date'].dt.month
+    
+    # Resample to monthly closing price to calculate monthly return
+    # Group by Year-Month, take the LAST price of the month
+    monthly_df = df.sort_values('date').groupby(['year', 'month']).last().reset_index()
+    
+    # Calculate Percentage Change
+    monthly_df['pct_change'] = monthly_df['price'].pct_change() * 100
+    
+    # Pivot for Heatmap: Index=Year, Columns=Month, Values=PctChange
+    pivot_df = monthly_df.pivot(index='year', columns='month', values='pct_change')
+    
+    # Fill NaN (first month usually) with 0
+    pivot_df = pivot_df.fillna(0)
+    
+    # Return structure suitable for frontend reconstruction
+    # reset_index to keep year as column
+    return pivot_df.reset_index().to_dict(orient='records')
