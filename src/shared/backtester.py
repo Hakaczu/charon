@@ -31,6 +31,24 @@ class Backtester:
         rsi_series = self.analyzer.calculate_rsi(prices_series)
         sma_series = self.analyzer.calculate_sma(prices_series, window=50)
         bb_df = self.analyzer.calculate_bollinger_bands(prices_series)
+        adx_series = self.analyzer.calculate_adx(df_prices)
+        
+        # Weekly Trend Pre-calculation (Vectorized)
+        df_weekly = self.analyzer.resample_to_weekly(df_prices)
+        # Calculate SMA 20 on Weekly
+        df_weekly['sma20_weekly'] = df_weekly['price'].rolling(window=20).mean()
+        df_weekly['weekly_trend'] = df_weekly.apply(
+            lambda x: "BULLISH" if pd.notna(x['sma20_weekly']) and x['price'] > x['sma20_weekly'] else "BEARISH", axis=1
+        )
+        # Merge back to Daily (Forward Fill to propagate weekly status to subsequent days)
+        # We need to join on date. Daily dates fall between weekly dates.
+        # Use asof merge or reindex with ffill.
+        df_daily_trend = df_prices[['date']].set_index('date')
+        df_weekly_trend = df_weekly[['weekly_trend']] # indexed by date
+        
+        # Merge weekly trend to daily dates (forward fill the last known weekly trend)
+        df_daily_trend = df_daily_trend.join(df_weekly_trend).ffill().fillna("NEUTRAL")
+        weekly_trend_series = df_daily_trend['weekly_trend'].values
         
         # Merge all into one df for easier iteration
         df = df_prices.copy()
@@ -41,6 +59,8 @@ class Backtester:
         df['sma'] = sma_series
         df['bb_lower'] = bb_df['bb_lower']
         df['bb_upper'] = bb_df['bb_upper']
+        df['adx'] = adx_series
+        df['weekly_trend'] = weekly_trend_series
         
         # Iterate starting from day 50 (to have SMA/MACD valid)
         for i in range(50, len(df)):
@@ -58,6 +78,8 @@ class Backtester:
             curr_sma = row['sma']
             curr_bb_lower = row['bb_lower']
             curr_bb_upper = row['bb_upper']
+            curr_adx = row['adx']
+            curr_weekly_trend = row['weekly_trend']
             
             # Re-use the EXACT logic from TechnicalAnalyzer
             # Note: The analyzer function expects pure floats
@@ -68,7 +90,9 @@ class Backtester:
                 current_price=float(price),
                 sma_val=float(curr_sma),
                 bb_lower=float(curr_bb_lower),
-                bb_upper=float(curr_bb_upper)
+                bb_upper=float(curr_bb_upper),
+                adx=float(curr_adx),
+                weekly_trend=str(curr_weekly_trend)
             )
             
             # Execute Trade

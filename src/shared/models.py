@@ -80,6 +80,8 @@ class Signal(Base):
     signal_line = Column(Numeric(10, 6), nullable=True)
     histogram = Column(Numeric(10, 6), nullable=True)
     rsi = Column(Numeric(10, 4), nullable=True)
+    adx = Column(Numeric(10, 4), nullable=True)
+    weekly_trend = Column(String(20), nullable=True) # BULLISH, BEARISH
     price_at_signal = Column(Numeric(10, 4), nullable=True)
     
     generated_at = Column(DateTime(timezone=True), server_default=func.now())

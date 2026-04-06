@@ -46,6 +46,11 @@ class BrainService:
             rsi_series = self.analyzer.calculate_rsi(df['price'])
             sma_series = self.analyzer.calculate_sma(df['price'], window=50)
             bb_df = self.analyzer.calculate_bollinger_bands(df['price'])
+            adx_series = self.analyzer.calculate_adx(df)
+            
+            # Weekly Trend
+            df_weekly = self.analyzer.resample_to_weekly(df)
+            curr_weekly_trend = self.analyzer.get_weekly_trend(df_weekly)
             
             # Check the last row for the latest signal
             current_idx = -1
@@ -58,9 +63,10 @@ class BrainService:
             curr_sma = float(sma_series.iloc[current_idx])
             curr_bb_lower = float(bb_df.iloc[current_idx]['bb_lower'])
             curr_bb_upper = float(bb_df.iloc[current_idx]['bb_upper'])
+            curr_adx = float(adx_series.iloc[current_idx])
             
             signal_decision = self.analyzer.determine_signal(
-                curr_hist, prev_hist, curr_rsi, curr_price, curr_sma, curr_bb_lower, curr_bb_upper
+                curr_hist, prev_hist, curr_rsi, curr_price, curr_sma, curr_bb_lower, curr_bb_upper, curr_adx, curr_weekly_trend
             )
             
             # Save signal
@@ -72,6 +78,8 @@ class BrainService:
                 signal_line=macd_df.iloc[current_idx]['signal'],
                 histogram=curr_hist,
                 rsi=curr_rsi,
+                adx=curr_adx,
+                weekly_trend=curr_weekly_trend,
                 price_at_signal=df.iloc[current_idx]['price'],
                 horizon_days=1 
             )
@@ -99,6 +107,11 @@ class BrainService:
             rsi_series = self.analyzer.calculate_rsi(df['price'])
             sma_series = self.analyzer.calculate_sma(df['price'], window=50)
             bb_df = self.analyzer.calculate_bollinger_bands(df['price'])
+            adx_series = self.analyzer.calculate_adx(df)
+            
+            # Weekly Trend
+            df_weekly = self.analyzer.resample_to_weekly(df)
+            curr_weekly_trend = self.analyzer.get_weekly_trend(df_weekly)
             
             curr_hist = macd_df.iloc[-1]['hist']
             prev_hist = macd_df.iloc[-2]['hist']
@@ -107,9 +120,10 @@ class BrainService:
             curr_sma = float(sma_series.iloc[-1])
             curr_bb_lower = float(bb_df.iloc[-1]['bb_lower'])
             curr_bb_upper = float(bb_df.iloc[-1]['bb_upper'])
+            curr_adx = float(adx_series.iloc[-1])
             
             signal_decision = self.analyzer.determine_signal(
-                curr_hist, prev_hist, curr_rsi, curr_price, curr_sma, curr_bb_lower, curr_bb_upper
+                curr_hist, prev_hist, curr_rsi, curr_price, curr_sma, curr_bb_lower, curr_bb_upper, curr_adx, curr_weekly_trend
             )
             
             new_signal = Signal(
@@ -120,6 +134,8 @@ class BrainService:
                 signal_line=macd_df.iloc[-1]['signal'],
                 histogram=curr_hist,
                 rsi=curr_rsi,
+                adx=curr_adx,
+                weekly_trend=curr_weekly_trend,
                 price_at_signal=df.iloc[-1]['price']
             )
             
