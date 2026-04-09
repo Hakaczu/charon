@@ -52,6 +52,7 @@ collector.log
 
 # lokalne zmienne środowiskowe
 .env
+.env.prod
 
 *.db
 frontend/node_modules
