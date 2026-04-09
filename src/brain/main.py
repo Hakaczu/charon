@@ -149,18 +149,12 @@ class BrainService:
             logger.info(f"Received event: {data}")
             
             if data['type'] == 'currency':
-                # Re-analyze all active currencies or just modified ones?
-                # For simplicity, let's analyze all or extract codes.
-                # Since payload doesn't list all codes easily, let's fetch all active currencies.
-                async with AsyncSessionLocal() as session:
-                    # In a real scenario we'd pass specific codes, but here we scan all.
-                    # Or better: check what was updated.
-                    # Let's iterate all distinct currencies for now.
-                    from src.shared.models import Currency
-                    result = await session.execute(select(Currency.code))
-                    codes = result.scalars().all()
-                    for code in codes:
-                        await self.process_currency(code)
+                codes = data.get('codes', [])
+                if not codes:
+                    logger.warning("Received currency event without codes list; skipping reprocessing.")
+                    return
+                for code in codes:
+                    await self.process_currency(code)
             
             elif data['type'] == 'gold':
                 await self.process_gold()

@@ -108,6 +108,7 @@ class MinerService:
                 if rows_count > 0:
                      await self.publish_event("rates.ingested", {
                          "type": "currency",
+                         "codes": list(unique_currencies.keys()),
                          "from": str(start_date),
                          "to": str(today),
                          "count": rows_count
