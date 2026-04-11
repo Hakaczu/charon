@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import math
 import os
 import sys
 import json
@@ -19,6 +20,13 @@ logger = logging.getLogger("brain")
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
 REDIS_CHANNEL = "rates.ingested"
+
+def _safe_db(value):
+    """Convert NaN/Inf float to None so PostgreSQL stores NULL instead of NaN."""
+    if isinstance(value, float) and (math.isnan(value) or math.isinf(value)):
+        return None
+    return value
+
 
 class BrainService:
     def __init__(self):
@@ -74,13 +82,13 @@ class BrainService:
                 asset_type=AssetType.CURRENCY,
                 asset_code=code,
                 signal=SignalType(signal_decision),
-                macd=macd_df.iloc[current_idx]['macd'],
-                signal_line=macd_df.iloc[current_idx]['signal'],
-                histogram=curr_hist,
-                rsi=curr_rsi,
-                adx=curr_adx,
+                macd=_safe_db(float(macd_df.iloc[current_idx]['macd'])),
+                signal_line=_safe_db(float(macd_df.iloc[current_idx]['signal'])),
+                histogram=_safe_db(float(curr_hist)),
+                rsi=_safe_db(float(curr_rsi)),
+                adx=_safe_db(float(curr_adx)),
                 weekly_trend=curr_weekly_trend,
-                price_at_signal=df.iloc[current_idx]['price'],
+                price_at_signal=_safe_db(float(df.iloc[current_idx]['price'])),
                 horizon_days=1 
             )
             
@@ -130,13 +138,13 @@ class BrainService:
                 asset_type=AssetType.GOLD,
                 asset_code="GOLD",
                 signal=SignalType(signal_decision),
-                macd=macd_df.iloc[-1]['macd'],
-                signal_line=macd_df.iloc[-1]['signal'],
-                histogram=curr_hist,
-                rsi=curr_rsi,
-                adx=curr_adx,
+                macd=_safe_db(float(macd_df.iloc[-1]['macd'])),
+                signal_line=_safe_db(float(macd_df.iloc[-1]['signal'])),
+                histogram=_safe_db(float(curr_hist)),
+                rsi=_safe_db(float(curr_rsi)),
+                adx=_safe_db(float(curr_adx)),
                 weekly_trend=curr_weekly_trend,
-                price_at_signal=df.iloc[-1]['price']
+                price_at_signal=_safe_db(float(df.iloc[-1]['price']))
             )
             
             session.add(new_signal)

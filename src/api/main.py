@@ -1,9 +1,12 @@
 from fastapi import FastAPI, Depends, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
-from typing import List, Optional
+from typing import List, Optional, Any
 from datetime import date
+import math
+import json
 
 from contextlib import asynccontextmanager
 from fastapi_cache import FastAPICache
@@ -29,6 +32,30 @@ from src.shared.models import Rate, GoldPrice, Signal, JobLog, Currency
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
 
+
+def _sanitize_nan(obj: Any) -> Any:
+    """Recursively replace NaN/Inf floats with None so JSON serialization succeeds."""
+    if isinstance(obj, float) and (math.isnan(obj) or math.isinf(obj)):
+        return None
+    if isinstance(obj, dict):
+        return {k: _sanitize_nan(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_sanitize_nan(v) for v in obj]
+    return obj
+
+
+class NanSafeJSONResponse(JSONResponse):
+    """JSONResponse subclass that converts NaN/Inf to null before serialisation."""
+
+    def render(self, content: Any) -> bytes:
+        return json.dumps(
+            _sanitize_nan(content),
+            ensure_ascii=False,
+            allow_nan=False,
+            indent=None,
+            separators=(",", ":"),
+        ).encode("utf-8")
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
@@ -37,7 +64,7 @@ async def lifespan(app: FastAPI):
     yield
     # Shutdown
 
-app = FastAPI(title="Charon API", lifespan=lifespan)
+app = FastAPI(title="Charon API", lifespan=lifespan, default_response_class=NanSafeJSONResponse)
 
 app.add_middleware(
     CORSMiddleware,
