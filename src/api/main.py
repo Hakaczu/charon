@@ -45,7 +45,7 @@ def _sanitize_nan(obj: Any) -> Any:
 
 
 class NanSafeJSONResponse(JSONResponse):
-    """JSONResponse subclass that converts NaN/Inf to null before serialisation."""
+    """JSONResponse subclass that converts NaN/Inf to null before serialization."""
 
     def render(self, content: Any) -> bytes:
         return json.dumps(
