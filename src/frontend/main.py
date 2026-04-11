@@ -433,7 +433,7 @@ with tabs[1]:
             return f'color: {color}; font-weight: bold'
 
         st.dataframe(
-            df_display.style.applymap(color_signal_text, subset=['signal']),
+            df_display.style.map(color_signal_text, subset=['signal']),
             use_container_width=True
         )
 
