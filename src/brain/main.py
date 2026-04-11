@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import math
 import os
 import sys
 import json
@@ -19,6 +20,18 @@ logger = logging.getLogger("brain")
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
 REDIS_CHANNEL = "rates.ingested"
+
+def _to_safe_float(value) -> float | None:
+    """Convert a value to float and replace NaN/Inf with None.
+
+    Prevents PostgreSQL NUMERIC NaN from being stored, which would later
+    cause json.dumps to raise ValueError when the API serializes signals.
+    """
+    f = float(value)
+    if math.isnan(f) or math.isinf(f):
+        return None
+    return f
+
 
 class BrainService:
     def __init__(self):
@@ -74,13 +87,13 @@ class BrainService:
                 asset_type=AssetType.CURRENCY,
                 asset_code=code,
                 signal=SignalType(signal_decision),
-                macd=macd_df.iloc[current_idx]['macd'],
-                signal_line=macd_df.iloc[current_idx]['signal'],
-                histogram=curr_hist,
-                rsi=curr_rsi,
-                adx=curr_adx,
+                macd=_to_safe_float(macd_df.iloc[current_idx]['macd']),
+                signal_line=_to_safe_float(macd_df.iloc[current_idx]['signal']),
+                histogram=_to_safe_float(curr_hist),
+                rsi=_to_safe_float(curr_rsi),
+                adx=_to_safe_float(curr_adx),
                 weekly_trend=curr_weekly_trend,
-                price_at_signal=df.iloc[current_idx]['price'],
+                price_at_signal=_to_safe_float(df.iloc[current_idx]['price']),
                 horizon_days=1 
             )
             
@@ -130,13 +143,13 @@ class BrainService:
                 asset_type=AssetType.GOLD,
                 asset_code="GOLD",
                 signal=SignalType(signal_decision),
-                macd=macd_df.iloc[-1]['macd'],
-                signal_line=macd_df.iloc[-1]['signal'],
-                histogram=curr_hist,
-                rsi=curr_rsi,
-                adx=curr_adx,
+                macd=_to_safe_float(macd_df.iloc[-1]['macd']),
+                signal_line=_to_safe_float(macd_df.iloc[-1]['signal']),
+                histogram=_to_safe_float(curr_hist),
+                rsi=_to_safe_float(curr_rsi),
+                adx=_to_safe_float(curr_adx),
                 weekly_trend=curr_weekly_trend,
-                price_at_signal=df.iloc[-1]['price']
+                price_at_signal=_to_safe_float(df.iloc[-1]['price'])
             )
             
             session.add(new_signal)
