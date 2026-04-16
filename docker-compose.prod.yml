@@ -110,10 +110,12 @@ services:
     image: ghcr.io/hakaczu/charon/charon-frontend:latest
     restart: unless-stopped
     ports:
-      - "${FRONTEND_PORT:-8501}:8501"
+      - "${FRONTEND_PORT:-3000}:3000"
     environment:
-      API_URL: http://api:8000
-      TZ: ${TZ:-Europe/Warsaw}
+      # Must be the public-facing URL of the API — accessible from the user's browser.
+      # Set this to your server's IP or domain, e.g. https://api.yourdomain.com
+      NEXT_PUBLIC_API_URL: ${API_PUBLIC_URL:-http://localhost:8000}
+      NODE_ENV: production
     depends_on:
       api:
         condition: service_started
