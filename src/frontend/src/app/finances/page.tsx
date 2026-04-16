@@ -1,6 +1,6 @@
 import { Wallet } from "lucide-react";
 
-export const metadata = { title: "Finances — Charon" };
+export const metadata = { title: "Finanse — Charon" };
 
 export default function FinancesPage() {
   return (
@@ -8,9 +8,9 @@ export default function FinancesPage() {
       <div className="rounded-full bg-muted p-6">
         <Wallet size={36} className="text-muted-foreground" />
       </div>
-      <h1 className="text-2xl font-bold">Finances</h1>
+      <h1 className="text-2xl font-bold">Finanse</h1>
       <p className="text-muted-foreground max-w-sm">
-        This section is under construction. Financial portfolio tracking and reporting coming soon.
+        Ta sekcja jest w budowie. Śledzenie i raportowanie portfela finansowego — już wkrótce.
       </p>
     </div>
   );

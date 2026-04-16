@@ -29,8 +29,8 @@ export function JobHistoryTable() {
   if (error) {
     return (
       <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive flex items-center justify-between">
-        <span>Failed to load job history.</span>
-        <button onClick={() => refetch()} className="underline text-xs">Retry</button>
+        <span>Nie udało się załadować historii zadań.</span>
+        <button onClick={() => refetch()} className="underline text-xs">Ponów</button>
       </div>
     );
   }
@@ -46,11 +46,11 @@ export function JobHistoryTable() {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Job Type</TableHead>
+            <TableHead>Typ zadania</TableHead>
             <TableHead>Status</TableHead>
-            <TableHead>Started</TableHead>
-            <TableHead>Duration</TableHead>
-            <TableHead className="text-right">Rows</TableHead>
+            <TableHead>Rozpoczęto</TableHead>
+            <TableHead>Czas</TableHead>
+            <TableHead className="text-right">Wiersze</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>

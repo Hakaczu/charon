@@ -3,7 +3,6 @@
 import ReactECharts from "echarts-for-react";
 import { useTheme } from "next-themes";
 import { useMemo } from "react";
-import { CHART_COLORS } from "@/lib/constants";
 import type { ForecastPoint } from "@/types/api";
 
 interface Props {
@@ -16,69 +15,76 @@ export function ForecastChart({ data, height = 320 }: Props) {
   const dark = resolvedTheme === "dark";
 
   const option = useMemo(() => {
-    const textColor = dark ? "#94a3b8" : "#64748b";
-    const gridColor = dark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)";
-    const dates = data.map((d) => d.ds.slice(0, 10));
+    const text = dark ? "#64748b" : "#94a3b8";
+    const grid = dark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)";
+    const dates = data.map((d) => d.ds.slice(0, 10).slice(5));
 
     return {
       backgroundColor: "transparent",
+      animation: true,
       tooltip: {
         trigger: "axis",
-        backgroundColor: dark ? "#1e293b" : "#ffffff",
+        backgroundColor: dark ? "#1e293b" : "#fff",
         borderColor: dark ? "#334155" : "#e2e8f0",
-        textStyle: { color: dark ? "#f1f5f9" : "#0f172a", fontSize: 12 },
+        borderRadius: 8,
+        textStyle: { color: dark ? "#f1f5f9" : "#0f172a", fontSize: 11 },
       },
-      grid: { left: 65, right: 20, top: 20, bottom: 30 },
+      grid: { left: 68, right: 16, top: 16, bottom: 28 },
       xAxis: {
         type: "category",
         data: dates,
-        axisLabel: { color: textColor, fontSize: 9 },
-        axisLine: { lineStyle: { color: gridColor } },
+        axisLabel: { color: text, fontSize: 9 },
+        axisLine: { lineStyle: { color: grid } },
         splitLine: { show: false },
       },
       yAxis: {
         scale: true,
-        axisLabel: { color: textColor, fontSize: 9, formatter: (v: number) => v.toFixed(4) },
-        splitLine: { lineStyle: { color: gridColor } },
+        axisLabel: { color: text, fontSize: 9, formatter: (v: number) => v.toFixed(4) },
+        splitLine: { lineStyle: { color: grid } },
+        axisLine: { show: false },
+        axisTick: { show: false },
       },
       series: [
-        // Lower confidence bound (invisible baseline for fill)
+        // Invisible lower bound (baseline for stacking)
         {
           name: "Lower",
           type: "line",
           data: data.map((d) => d.yhat_lower),
           lineStyle: { opacity: 0 },
           symbol: "none",
-          stack: "confidence",
+          stack: "band",
           areaStyle: { opacity: 0 },
           silent: true,
+          legendHoverLink: false,
         },
-        // Upper - lower = the band (filled)
+        // Confidence band (upper - lower stacked on top)
         {
-          name: "Confidence",
+          name: "Przedział ufności",
           type: "line",
           data: data.map((d) => d.yhat_upper - d.yhat_lower),
           lineStyle: { opacity: 0 },
           symbol: "none",
-          stack: "confidence",
-          areaStyle: { color: CHART_COLORS.forecastBand, origin: "start" },
+          stack: "band",
+          areaStyle: { color: "rgba(99,102,241,0.15)" },
           silent: true,
+          legendHoverLink: false,
         },
         // Forecast line
         {
-          name: "Forecast",
+          name: "Prognoza",
           type: "line",
           data: data.map((d) => d.yhat),
-          lineStyle: { color: CHART_COLORS.forecastLine, width: 2.5 },
+          smooth: 0.3,
           symbol: "circle",
-          symbolSize: 4,
-          itemStyle: { color: CHART_COLORS.forecastLine },
+          symbolSize: 5,
+          lineStyle: { color: "#6366f1", width: 2.5 },
+          itemStyle: { color: "#6366f1" },
           label: {
             show: true,
             position: "top",
             formatter: (p: { value: number }) => p.value.toFixed(4),
             fontSize: 9,
-            color: textColor,
+            color: text,
           },
         },
       ],

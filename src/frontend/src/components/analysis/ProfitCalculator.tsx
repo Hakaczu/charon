@@ -52,11 +52,11 @@ export function ProfitCalculator() {
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        Calculates hypothetical return if you invested on the most recent BUY signal for each asset.
+        Oblicza hipotetyczny zwrot z inwestycji na podstawie ostatnich sygnałów BUY dla każdego aktywa.
       </p>
 
       <div className="space-y-1 max-w-xs">
-        <label className="text-xs text-muted-foreground">Investment Amount (PLN)</label>
+        <label className="text-xs text-muted-foreground">Kwota inwestycji (PLN)</label>
         <Input
           type="number"
           value={amount}
@@ -74,7 +74,7 @@ export function ProfitCalculator() {
       )}
 
       {positions && positions.length === 0 && (
-        <p className="text-sm text-muted-foreground">No active BUY signals found.</p>
+        <p className="text-sm text-muted-foreground">Brak aktywnych sygnałów BUY.</p>
       )}
 
       {positions && positions.length > 0 && (
@@ -91,10 +91,10 @@ export function ProfitCalculator() {
                 <CardContent className="p-3 space-y-1">
                   <div className="font-bold text-sm">{assetCode}</div>
                   <div className="text-xs text-muted-foreground">
-                    Bought at: <span className="font-mono">{buyPrice.toFixed(4)}</span>
+                    Zakup: <span className="font-mono">{buyPrice.toFixed(4)}</span>
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    Now: <span className="font-mono">{currentPrice.toFixed(4)}</span>
+                    Teraz: <span className="font-mono">{currentPrice.toFixed(4)}</span>
                   </div>
                   <div className={cn(
                     "font-bold text-sm",

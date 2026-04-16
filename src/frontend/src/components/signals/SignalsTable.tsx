@@ -28,8 +28,8 @@ export function SignalsTable() {
   if (error) {
     return (
       <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive flex items-center justify-between">
-        <span>Failed to load signals.</span>
-        <button onClick={() => refetch()} className="underline text-xs">Retry</button>
+        <span>Nie udało się załadować sygnałów.</span>
+        <button onClick={() => refetch()} className="underline text-xs">Ponów</button>
       </div>
     );
   }
@@ -39,10 +39,10 @@ export function SignalsTable() {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Date</TableHead>
-            <TableHead>Asset</TableHead>
-            <TableHead>Signal</TableHead>
-            <TableHead className="text-right">Price</TableHead>
+            <TableHead>Data</TableHead>
+            <TableHead>Aktywo</TableHead>
+            <TableHead>Sygnał</TableHead>
+            <TableHead className="text-right">Cena</TableHead>
             <TableHead className="text-right">MACD Hist</TableHead>
           </TableRow>
         </TableHeader>

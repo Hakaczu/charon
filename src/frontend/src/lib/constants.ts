@@ -1,3 +1,5 @@
+export const APP_VERSION = "1.0.0";
+
 export const ASSETS = ["GOLD", "USD", "EUR", "CHF", "GBP", "JPY", "CAD", "AUD", "NOK"] as const;
 export type AssetCode = (typeof ASSETS)[number];
 
@@ -24,12 +26,12 @@ export const CHART_COLORS = {
 } as const;
 
 export const NAV_ITEMS = [
-  { href: "/markets", label: "Markets", icon: "BarChart2" },
-  { href: "/signals", label: "Signals", icon: "Bell" },
+  { href: "/markets", label: "Rynki", icon: "BarChart2" },
+  { href: "/signals", label: "Sygnały", icon: "Bell" },
   { href: "/miner", label: "Miner", icon: "Activity" },
   { href: "/backtesting", label: "Backtest", icon: "FlaskConical" },
-  { href: "/analysis", label: "Analysis", icon: "BrainCircuit" },
-  { href: "/finances", label: "Finances", icon: "Wallet" },
+  { href: "/analysis", label: "Analiza", icon: "BrainCircuit" },
+  { href: "/finances", label: "Finanse", icon: "Wallet" },
 ] as const;
 
-export const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+export const MONTH_LABELS = ["Sty", "Lut", "Mar", "Kwi", "Maj", "Cze", "Lip", "Sie", "Wrz", "Paź", "Lis", "Gru"];

@@ -14,8 +14,8 @@ export default function MinerPage() {
     <div className="p-4 md:p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold tracking-tight">Miner Stats</h1>
-          <p className="text-muted-foreground text-sm mt-0.5">Data ingestion job status and scheduling</p>
+          <h1 className="text-xl font-bold tracking-tight">Statystyki minera</h1>
+          <p className="text-muted-foreground text-sm mt-0.5">Status zadań importu danych i harmonogram</p>
         </div>
         <Button
           variant="outline"
@@ -23,7 +23,7 @@ export default function MinerPage() {
           onClick={() => qc.invalidateQueries({ queryKey: ["miner"] }).then(() => qc.invalidateQueries({ queryKey: ["upcoming"] }))}
         >
           <RefreshCcw size={14} className="mr-1.5" />
-          Refresh
+          Odśwież
         </Button>
       </div>
 
@@ -33,7 +33,7 @@ export default function MinerPage() {
 
       <div>
         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-          Job History
+          Historia zadań
         </h2>
         <JobHistoryTable />
       </div>

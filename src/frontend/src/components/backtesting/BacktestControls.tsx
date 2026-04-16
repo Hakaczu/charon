@@ -34,7 +34,7 @@ export function BacktestControls({ onRun, loading }: Props) {
   return (
     <div className="flex flex-wrap gap-3 items-end">
       <div className="space-y-1">
-        <label className="text-xs text-muted-foreground">Asset</label>
+        <label className="text-xs text-muted-foreground">Aktywo</label>
         <Select value={asset} onValueChange={(v) => { if (v) setAsset(v); }}>
           <SelectTrigger className="w-36">
             <SelectValue />
@@ -48,7 +48,7 @@ export function BacktestControls({ onRun, loading }: Props) {
       </div>
 
       <div className="space-y-1">
-        <label className="text-xs text-muted-foreground">Initial Capital (PLN)</label>
+        <label className="text-xs text-muted-foreground">Kapitał startowy (PLN)</label>
         <Input
           type="number"
           value={capital}
@@ -65,7 +65,7 @@ export function BacktestControls({ onRun, loading }: Props) {
         className="gap-1.5"
       >
         {loading ? <Loader2 size={14} className="animate-spin" /> : <FlaskConical size={14} />}
-        Run Simulation
+        Uruchom symulację
       </Button>
     </div>
   );

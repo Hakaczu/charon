@@ -17,14 +17,15 @@ import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { useSidebar } from "@/providers/SidebarProvider";
+import { APP_VERSION } from "@/lib/constants";
 
 const ITEMS = [
-  { href: "/markets", label: "Markets", Icon: BarChart2 },
-  { href: "/signals", label: "Signals", Icon: Bell },
+  { href: "/markets", label: "Rynki", Icon: BarChart2 },
+  { href: "/signals", label: "Sygnały", Icon: Bell },
   { href: "/miner", label: "Miner", Icon: Activity },
   { href: "/backtesting", label: "Backtest", Icon: FlaskConical },
-  { href: "/analysis", label: "Analysis", Icon: BrainCircuit },
-  { href: "/finances", label: "Finances", Icon: Wallet },
+  { href: "/analysis", label: "Analiza", Icon: BrainCircuit },
+  { href: "/finances", label: "Finanse", Icon: Wallet },
 ];
 
 export function Sidebar() {
@@ -94,6 +95,9 @@ export function Sidebar() {
         )}
       >
         <ThemeToggle />
+        {!collapsed && (
+          <span className="text-[10px] text-muted-foreground/50 select-none">v{APP_VERSION}</span>
+        )}
         <button
           onClick={toggle}
           className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"

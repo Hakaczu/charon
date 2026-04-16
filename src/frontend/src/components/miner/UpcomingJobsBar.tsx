@@ -28,9 +28,9 @@ export function UpcomingJobsBar() {
 
   return (
     <div className="grid grid-cols-3 gap-4">
-      <JobCard icon={<Database size={16} />} label="Next Rates Import" value={formatTime(data.import_rates)} />
-      <JobCard icon={<Coins size={16} />} label="Next Gold Import" value={formatTime(data.import_gold)} />
-      <JobCard icon={<Clock size={16} />} label="Server Time" value={formatTime(data.server_time)} />
+      <JobCard icon={<Database size={16} />} label="Następny import kursów" value={formatTime(data.import_rates)} />
+      <JobCard icon={<Coins size={16} />} label="Następny import złota" value={formatTime(data.import_gold)} />
+      <JobCard icon={<Clock size={16} />} label="Czas serwera" value={formatTime(data.server_time)} />
     </div>
   );
 }

@@ -13,12 +13,12 @@ import {
 import { cn } from "@/lib/utils";
 
 const ITEMS = [
-  { href: "/markets", label: "Markets", Icon: BarChart2 },
-  { href: "/signals", label: "Signals", Icon: Bell },
+  { href: "/markets", label: "Rynki", Icon: BarChart2 },
+  { href: "/signals", label: "Sygnały", Icon: Bell },
   { href: "/miner", label: "Miner", Icon: Activity },
   { href: "/backtesting", label: "Backtest", Icon: FlaskConical },
-  { href: "/analysis", label: "Analysis", Icon: BrainCircuit },
-  { href: "/finances", label: "Finances", Icon: Wallet },
+  { href: "/analysis", label: "Analiza", Icon: BrainCircuit },
+  { href: "/finances", label: "Finanse", Icon: Wallet },
 ];
 
 export function BottomNav() {

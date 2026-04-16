@@ -11,23 +11,23 @@ export default function AnalysisPage() {
   return (
     <div className="p-4 md:p-6 space-y-6">
       <div>
-        <h1 className="text-xl font-bold tracking-tight">Advanced Analysis</h1>
-        <p className="text-muted-foreground text-sm mt-0.5">Correlation, seasonality, AI forecasting and profit simulation</p>
+        <h1 className="text-xl font-bold tracking-tight">Zaawansowana analiza</h1>
+        <p className="text-muted-foreground text-sm mt-0.5">Korelacja, sezonowość, prognoza AI i symulacja zysku</p>
       </div>
 
       <Tabs defaultValue="correlation">
         <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="correlation" className="gap-1.5 text-xs">
-            <Flame size={13} /> Correlation
+            <Flame size={13} /> Korelacja
           </TabsTrigger>
           <TabsTrigger value="seasonality" className="gap-1.5 text-xs">
-            <CalendarDays size={13} /> Seasonality
+            <CalendarDays size={13} /> Sezonowość
           </TabsTrigger>
           <TabsTrigger value="forecast" className="gap-1.5 text-xs">
-            <BrainCircuit size={13} /> AI Forecast
+            <BrainCircuit size={13} /> Prognoza AI
           </TabsTrigger>
           <TabsTrigger value="profit" className="gap-1.5 text-xs">
-            <DollarSign size={13} /> Profit Calc
+            <DollarSign size={13} /> Kalkulator zysku
           </TabsTrigger>
         </TabsList>
 

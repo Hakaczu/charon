@@ -51,14 +51,14 @@ async function buildSummary(): Promise<SummaryData> {
       featuredSignal = { asset_code: s.asset_code, signal: s.signal, generated_at: s.generated_at };
     }
     if (s.rsi != null) {
-      if (s.rsi > 70) rsiAlertsSet.add(`${s.asset_code} Overbought (RSI ${s.rsi.toFixed(0)})`);
-      if (s.rsi < 30) rsiAlertsSet.add(`${s.asset_code} Oversold (RSI ${s.rsi.toFixed(0)})`);
+      if (s.rsi > 70) rsiAlertsSet.add(`${s.asset_code} Wykupienie (RSI ${s.rsi.toFixed(0)})`);
+      if (s.rsi < 30) rsiAlertsSet.add(`${s.asset_code} Wyprzedanie (RSI ${s.rsi.toFixed(0)})`);
     }
   }
 
-  let sentiment = "Neutral";
-  if (upCount > downCount + 2) sentiment = "Bullish";
-  else if (downCount > upCount + 2) sentiment = "Bearish";
+  let sentiment = "Neutralny";
+  if (upCount > downCount + 2) sentiment = "Wzrostowy";
+  else if (downCount > upCount + 2) sentiment = "Spadkowy";
 
   return {
     sentiment,
@@ -97,18 +97,18 @@ export function ExecutiveSummary() {
   if (!data) return null;
 
   const SentimentIcon =
-    data.sentiment === "Bullish" ? TrendingUp :
-    data.sentiment === "Bearish" ? TrendingDown : Minus;
+    data.sentiment === "Wzrostowy" ? TrendingUp :
+    data.sentiment === "Spadkowy" ? TrendingDown : Minus;
 
   const sentimentColor =
-    data.sentiment === "Bullish" ? "text-green-500" :
-    data.sentiment === "Bearish" ? "text-red-500" : "text-muted-foreground";
+    data.sentiment === "Wzrostowy" ? "text-green-500" :
+    data.sentiment === "Spadkowy" ? "text-red-500" : "text-muted-foreground";
 
   return (
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="text-base flex items-center gap-2">
-          Market Executive Summary
+          Podsumowanie rynku
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -119,7 +119,7 @@ export function ExecutiveSummary() {
               <SentimentIcon size={18} className={sentimentColor} />
               <span className="font-semibold">{data.sentiment}</span>
               <span className="text-sm text-muted-foreground">
-                — {data.upCount} up, {data.downCount} down
+                — {data.upCount} wzrosty, {data.downCount} spadki
               </span>
             </div>
 
@@ -154,7 +154,7 @@ export function ExecutiveSummary() {
               <div className="rounded-lg border border-green-500/20 bg-green-500/5 p-3 space-y-1">
                 <div className="flex items-center gap-1.5 text-xs font-semibold text-green-600 dark:text-green-400">
                   <Zap size={12} />
-                  Signal of the Day
+                  Sygnał dnia
                 </div>
                 <div className="font-bold text-lg">{data.featuredSignal.asset_code}</div>
                 <SignalBadge signal={data.featuredSignal.signal} size="md" pulse />
@@ -164,7 +164,7 @@ export function ExecutiveSummary() {
               </div>
             ) : (
               <div className="rounded-lg border border-border bg-muted/30 p-3 text-sm text-muted-foreground">
-                No strong signals recently.
+                Brak silnych sygnałów.
               </div>
             )}
           </div>

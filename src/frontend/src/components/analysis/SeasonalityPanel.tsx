@@ -23,11 +23,11 @@ export function SeasonalityPanel() {
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        Analyse historical monthly returns to identify seasonal patterns.
+        Analizuj historyczne miesięczne zwroty, aby zidentyfikować wzorce sezonowe.
       </p>
       <div className="flex gap-3 items-end flex-wrap">
         <div className="space-y-1">
-          <label className="text-xs text-muted-foreground">Asset</label>
+          <label className="text-xs text-muted-foreground">Aktywo</label>
           <Select value={asset} onValueChange={(v) => { if (v) { setAsset(v); setEnabled(false); } }}>
             <SelectTrigger className="w-32">
               <SelectValue />
@@ -41,14 +41,14 @@ export function SeasonalityPanel() {
         </div>
         <Button onClick={() => setEnabled(true)} variant="default" size="sm" className="gap-1.5">
           <BarChart3 size={14} />
-          Analyse
+          Analizuj
         </Button>
       </div>
 
       {isLoading && <Skeleton className="h-96 w-full" />}
-      {error && <p className="text-sm text-destructive">Failed to load seasonality data.</p>}
+      {error && <p className="text-sm text-destructive">Nie udało się załadować danych sezonowości.</p>}
       {data && data.length > 0 && <SeasonalityHeatmap data={data} />}
-      {data && data.length === 0 && <p className="text-sm text-muted-foreground">Not enough data.</p>}
+      {data && data.length === 0 && <p className="text-sm text-muted-foreground">Brak wystarczających danych.</p>}
     </div>
   );
 }

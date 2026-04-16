@@ -4,21 +4,21 @@ import { AssetChartGrid } from "@/components/markets/AssetChartGrid";
 import { ChartLegend } from "@/components/markets/ChartLegend";
 import { Separator } from "@/components/ui/separator";
 
-export const metadata = { title: "Markets — Charon" };
+export const metadata = { title: "Rynki — Charon" };
 
 export default function MarketsPage() {
   return (
     <div className="p-4 md:p-6 space-y-6">
       <div>
-        <h1 className="text-xl font-bold tracking-tight">Market Overview</h1>
-        <p className="text-muted-foreground text-sm mt-0.5">Live prices, signals and technical indicators</p>
+        <h1 className="text-xl font-bold tracking-tight">Przegląd rynku</h1>
+        <p className="text-muted-foreground text-sm mt-0.5">Ceny na żywo, sygnały i wskaźniki techniczne</p>
       </div>
 
       <ExecutiveSummary />
 
       <div>
         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-          Market Snapshot
+          Migawka rynkowa
         </h2>
         <AssetMetricGrid />
       </div>
@@ -27,7 +27,7 @@ export default function MarketsPage() {
 
       <div>
         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-          Charts
+          Wykresy
         </h2>
         <AssetChartGrid />
       </div>

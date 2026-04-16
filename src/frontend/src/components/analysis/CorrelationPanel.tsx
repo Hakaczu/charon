@@ -10,13 +10,13 @@ export function CorrelationPanel() {
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        Correlation matrix based on the last 180 days of price data.
-        <span className="ml-2 text-blue-500 font-medium">1.0 = Perfect positive.</span>
-        <span className="ml-2 text-red-500 font-medium">-1.0 = Perfect negative.</span>
+        Macierz korelacji oparta na ostatnich 180 dniach danych cenowych.
+        <span className="ml-2 text-blue-500 font-medium">1,0 = Idealna korelacja dodatnia.</span>
+        <span className="ml-2 text-red-500 font-medium">-1,0 = Idealna korelacja ujemna.</span>
       </p>
 
       {isLoading && <Skeleton className="h-[500px] w-full" />}
-      {error && <p className="text-sm text-destructive">Failed to load correlation data.</p>}
+      {error && <p className="text-sm text-destructive">Nie udało się załadować danych korelacji.</p>}
       {data && <CorrelationHeatmap data={data} />}
     </div>
   );

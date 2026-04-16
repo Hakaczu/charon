@@ -20,8 +20,8 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Charon — Market Dashboard",
-  description: "Financial trading signals and market analysis dashboard",
+  title: "Charon — Panel Rynkowy",
+  description: "Sygnały transakcyjne i analiza rynku finansowego",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -1,7 +1,5 @@
 "use client";
 
-import ReactECharts from "echarts-for-react";
-import { useTheme } from "next-themes";
 import { useMemo } from "react";
 import type { CorrelationMatrix } from "@/types/api";
 
@@ -10,65 +8,139 @@ interface Props {
   height?: number;
 }
 
+function interpolateColor(value: number): string {
+  // -1 = red (#ef4444), 0 = white (#f8fafc), 1 = blue (#3b82f6)
+  const clamp = Math.max(-1, Math.min(1, value));
+  if (clamp < 0) {
+    const t = clamp + 1; // 0→red, 1→white
+    const r = Math.round(239 + (248 - 239) * t);
+    const g = Math.round(68 + (250 - 68) * t);
+    const b = Math.round(68 + (252 - 68) * t);
+    return `rgb(${r},${g},${b})`;
+  } else {
+    const t = clamp; // 0→white, 1→blue
+    const r = Math.round(248 - (248 - 59) * t);
+    const g = Math.round(250 - (250 - 130) * t);
+    const b = Math.round(252 - (252 - 246) * t);
+    return `rgb(${r},${g},${b})`;
+  }
+}
+
+function textColor(value: number): string {
+  // Dark text on light cells (near 0), light text on saturated cells
+  return Math.abs(value) > 0.5 ? "#0f172a" : "hsl(var(--foreground))";
+}
+
 export function CorrelationHeatmap({ data, height = 500 }: Props) {
-  const { resolvedTheme } = useTheme();
-  const dark = resolvedTheme === "dark";
-
-  const option = useMemo(() => {
+  const { assets, matrix } = useMemo(() => {
     const assets = Object.keys(data);
-    const textColor = dark ? "#94a3b8" : "#64748b";
+    const matrix = assets.map((row) =>
+      assets.map((col) => parseFloat((data[row]?.[col] ?? 0).toFixed(2)))
+    );
+    return { assets, matrix };
+  }, [data]);
 
-    const heatmapData: [number, number, number][] = [];
-    assets.forEach((row, i) => {
-      assets.forEach((col, j) => {
-        heatmapData.push([j, i, parseFloat((data[row]?.[col] ?? 0).toFixed(2))]);
-      });
-    });
+  const cellSize = Math.min(56, Math.floor((height - 48) / Math.max(assets.length, 1)));
 
-    return {
-      backgroundColor: "transparent",
-      tooltip: {
-        formatter: (p: { data: [number, number, number] }) =>
-          `${assets[p.data[1]]} / ${assets[p.data[0]]}: <b>${p.data[2]}</b>`,
-        backgroundColor: dark ? "#1e293b" : "#ffffff",
-        borderColor: dark ? "#334155" : "#e2e8f0",
-        textStyle: { color: dark ? "#f1f5f9" : "#0f172a", fontSize: 12 },
-      },
-      grid: { left: 60, right: 20, top: 20, bottom: 60 },
-      xAxis: {
-        type: "category",
-        data: assets,
-        axisLabel: { color: textColor, fontSize: 11 },
-        axisLine: { show: false },
-        splitArea: { show: true, areaStyle: { color: ["transparent", "transparent"] } },
-      },
-      yAxis: {
-        type: "category",
-        data: assets,
-        axisLabel: { color: textColor, fontSize: 11 },
-        axisLine: { show: false },
-        splitArea: { show: true, areaStyle: { color: ["transparent", "transparent"] } },
-      },
-      visualMap: {
-        min: -1,
-        max: 1,
-        calculable: true,
-        orient: "horizontal",
-        left: "center",
-        bottom: 0,
-        inRange: { color: ["#ef4444", "#f8fafc", "#3b82f6"] },
-        textStyle: { color: textColor, fontSize: 10 },
-      },
-      series: [
-        {
-          type: "heatmap",
-          data: heatmapData,
-          label: { show: true, fontSize: 10, color: dark ? "#1e293b" : "#0f172a" },
-          emphasis: { itemStyle: { shadowBlur: 10, shadowColor: "rgba(0,0,0,0.3)" } },
-        },
-      ],
-    };
-  }, [data, dark]);
-
-  return <ReactECharts option={option} style={{ height, width: "100%" }} notMerge />;
+  return (
+    <div style={{ overflowX: "auto" }}>
+      <div
+        style={{
+          display: "inline-grid",
+          gridTemplateColumns: `48px repeat(${assets.length}, ${cellSize}px)`,
+          gridTemplateRows: `24px repeat(${assets.length}, ${cellSize}px)`,
+          gap: 1,
+        }}
+      >
+        {/* Top-left empty corner */}
+        <div />
+        {/* Column headers */}
+        {assets.map((a) => (
+          <div
+            key={`col-${a}`}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 10,
+              fontWeight: 600,
+              color: "hsl(var(--muted-foreground))",
+            }}
+          >
+            {a}
+          </div>
+        ))}
+        {/* Rows */}
+        {assets.map((rowAsset, ri) => (
+          <>
+            {/* Row header */}
+            <div
+              key={`row-${rowAsset}`}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "flex-end",
+                paddingRight: 6,
+                fontSize: 10,
+                fontWeight: 600,
+                color: "hsl(var(--muted-foreground))",
+              }}
+            >
+              {rowAsset}
+            </div>
+            {/* Cells */}
+            {assets.map((colAsset, ci) => {
+              const val = matrix[ri][ci];
+              const bg = interpolateColor(val);
+              const fg = textColor(val);
+              return (
+                <div
+                  key={`${rowAsset}-${colAsset}`}
+                  title={`${rowAsset} / ${colAsset}: ${val}`}
+                  style={{
+                    background: bg,
+                    color: fg,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 9,
+                    fontWeight: 500,
+                    borderRadius: 2,
+                    cursor: "default",
+                    transition: "opacity 0.15s",
+                  }}
+                >
+                  {val.toFixed(2)}
+                </div>
+              );
+            })}
+          </>
+        ))}
+      </div>
+      {/* Legend */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          marginTop: 12,
+          paddingLeft: 48,
+          fontSize: 9,
+          color: "hsl(var(--muted-foreground))",
+        }}
+      >
+        <span>-1</span>
+        <div
+          style={{
+            flex: 1,
+            height: 8,
+            borderRadius: 4,
+            background: "linear-gradient(to right, #ef4444, #f8fafc, #3b82f6)",
+            maxWidth: 160,
+          }}
+        />
+        <span>+1</span>
+      </div>
+    </div>
+  );
 }

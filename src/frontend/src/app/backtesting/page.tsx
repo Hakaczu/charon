@@ -13,15 +13,15 @@ export default function BacktestingPage() {
   return (
     <div className="p-4 md:p-6 space-y-6">
       <div>
-        <h1 className="text-xl font-bold tracking-tight">Strategy Backtesting</h1>
-        <p className="text-muted-foreground text-sm mt-0.5">Simulate Charon&apos;s strategy on historical data</p>
+        <h1 className="text-xl font-bold tracking-tight">Backtesting strategii</h1>
+        <p className="text-muted-foreground text-sm mt-0.5">Symuluj strategię Charona na danych historycznych</p>
       </div>
 
       <BacktestControls onRun={(asset, capital) => mutate({ assetCode: asset, initialCapital: capital })} loading={isPending} />
 
       {error && (
         <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-          Simulation failed: {error.message}
+          Symulacja nie powiodła się: {error.message}
         </div>
       )}
 
@@ -33,7 +33,7 @@ export default function BacktestingPage() {
           {data.equity_curve.length > 0 && (
             <div>
               <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-                Portfolio Value Over Time
+                Wartość portfela w czasie
               </h2>
               <EquityCurveChart data={data.equity_curve} height={280} />
             </div>
@@ -41,7 +41,7 @@ export default function BacktestingPage() {
 
           <div>
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-              Trade History
+              Historia transakcji
             </h2>
             <TradesTable trades={data.trades} />
           </div>

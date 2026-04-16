@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 
 export function TradesTable({ trades }: { trades: Trade[] }) {
   if (trades.length === 0) {
-    return <p className="text-sm text-muted-foreground">No trades executed.</p>;
+    return <p className="text-sm text-muted-foreground">Brak wykonanych transakcji.</p>;
   }
 
   return (
@@ -20,12 +20,12 @@ export function TradesTable({ trades }: { trades: Trade[] }) {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Date</TableHead>
-            <TableHead>Type</TableHead>
-            <TableHead className="text-right">Price</TableHead>
-            <TableHead className="text-right">Units</TableHead>
-            <TableHead className="text-right">Value (PLN)</TableHead>
-            <TableHead className="text-right">P&L</TableHead>
+            <TableHead>Data</TableHead>
+            <TableHead>Typ</TableHead>
+            <TableHead className="text-right">Cena</TableHead>
+            <TableHead className="text-right">Jednostki</TableHead>
+            <TableHead className="text-right">Wartość (PLN)</TableHead>
+            <TableHead className="text-right">Z/S</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>

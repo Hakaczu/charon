@@ -23,11 +23,11 @@ export function ForecastPanel() {
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        AI-powered 7-day price forecast using Facebook Prophet.
+        Prognoza ceny na 7 dni oparta na AI (Facebook Prophet).
       </p>
       <div className="flex gap-3 items-end flex-wrap">
         <div className="space-y-1">
-          <label className="text-xs text-muted-foreground">Asset</label>
+          <label className="text-xs text-muted-foreground">Aktywo</label>
           <Select value={asset} onValueChange={(v) => { if (v) { setAsset(v); setEnabled(false); } }}>
             <SelectTrigger className="w-32">
               <SelectValue />
@@ -47,16 +47,16 @@ export function ForecastPanel() {
           className="gap-1.5"
         >
           {isLoading ? <Loader2 size={14} className="animate-spin" /> : <BrainCircuit size={14} />}
-          Run AI Forecast
+          Uruchom prognozę AI
         </Button>
       </div>
 
       {isLoading && <Skeleton className="h-80 w-full" />}
-      {error && <p className="text-sm text-destructive">Forecast failed.</p>}
+      {error && <p className="text-sm text-destructive">Prognoza nie powiodła się.</p>}
       {data && data.length > 0 && (
         <div>
           <p className="text-xs text-muted-foreground mb-2">
-            7-day forecast for <strong>{asset}</strong> — shaded area = 80% confidence interval
+            7-dniowa prognoza dla <strong>{asset}</strong> — obszar zacieniowany = 80% przedział ufności
           </p>
           <ForecastChart data={data} />
         </div>

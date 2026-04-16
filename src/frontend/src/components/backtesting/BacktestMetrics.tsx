@@ -9,17 +9,17 @@ export function BacktestMetrics({ result }: { result: BacktestResult }) {
   return (
     <div className="grid grid-cols-3 gap-4">
       <MetricCard
-        label="Final Value"
+        label="Wartość końcowa"
         value={`${result.final_value.toFixed(2)} PLN`}
         sub={`${result.total_return_pct >= 0 ? "+" : ""}${result.total_return_pct.toFixed(2)}%`}
         positive={result.total_return_pct >= 0}
       />
       <MetricCard
-        label="Total Trades"
+        label="Liczba transakcji"
         value={String(result.total_trades)}
       />
       <MetricCard
-        label="Profit / Loss"
+        label="Zysk / Strata"
         value={`${profit >= 0 ? "+" : ""}${profit.toFixed(2)} PLN`}
         positive={positive}
       />
