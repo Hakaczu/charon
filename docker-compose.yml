@@ -98,15 +98,14 @@ services:
 
   frontend:
     build:
-      context: ./src
-      dockerfile: frontend/Dockerfile
+      context: ./src/frontend
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8000
     restart: always
     ports:
-      - "8501:8501"
+      - "3000:3000"
     environment:
-      API_URL: http://api:8000
-    volumes:
-      - ./src/frontend:/app/src/frontend
+      NEXT_PUBLIC_API_URL: http://localhost:8000
     depends_on:
       api:
         condition: service_started
